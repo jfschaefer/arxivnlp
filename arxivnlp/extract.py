@@ -224,9 +224,10 @@ class Document(object):
 
 
 if __name__ == '__main__':
+    import sys
     parser = etree.HTMLParser()
     
-    file = '/drive/arXMLiv_mini/1608/1608.09016.html'
+    file = sys.argv[1] # '/drive/arXMLiv_mini/1608/1608.09016.html'
     
     
     timea = time.time()
