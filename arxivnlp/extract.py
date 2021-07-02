@@ -180,17 +180,24 @@ class Document(object):
         # TODO: fix backrefs everywhere, fix errors causing from reset of tail/text after insert
         if bf[0] == 'n':
             bf[1].addprevious(node)
-        elif bf[0] == 'ns':
+        elif bf[0] == 'ns':             # unclear: should it be inside or outside the node?
             node.tail = bf[1].text
             bf[1].text = None
             bf[1].insert(0, node)
-        elif bf[0] == 'ne':
-            node.tail = bf[1].tail
-            bf[1].addnext(node)
+        elif bf[0] == 'ne':             # unclear: should it be inside or outside the node?
+            # node.tail = bf[1].tail
+            bf[1].insert(1, node)
         elif bf[0] == 't':
             node.tail = bf[1].text[bf[2]:]
             bf[1].text = bf[1].text[:bf[2]]
             bf[1].insert(0, node)
+            i = offset
+            while i < len(self.backrefs):
+                bfi = self.backrefs[i]
+                if bfi[0] != 't': break
+                if bfi[1] != bf[1]: break
+                self.backrefs[i] = ('tt', node, bfi[2] - bf[2])
+                i += 1
         elif bf[0] == 'tt':
             oldtail = bf[1].tail
             bf[1].addnext(node)
@@ -202,6 +209,7 @@ class Document(object):
                 if bfi[0] != 'tt': break
                 if bfi[1] != bf[1]: break
                 self.backrefs[i] = ('tt', node, bfi[2] - bf[2])
+                i += 1
         else:
             raise Exception(f'Invalid backref {bf}')
         # Types of backrefs:
@@ -217,41 +225,40 @@ class Document(object):
 
 
 
-
-
-parser = etree.HTMLParser()
-
-file = '/drive/arXMLiv_mini/1608/1608.09016.html'
-
-
-timea = time.time()
-tree = etree.parse(file, parser)
-timeb = time.time()
-# s = recurse(tree.getroot())
-doc = Document(tree, True)
-
-# assert len(doc.backrefs) == len(doc.string)
-timec = time.time()
-print(len(doc.string))
-doc.cleanup_whitespace()
-print(len(doc.string))
-doc.sentence_segmentation()
-# print(doc.getString())
-# # remove duplicate spaces
-# s2 = ''
-# for c in s:
-#     if c.isspace() and len(s2) and s2[-1].isspace():
-#         continue
-#     s2 += c
-timed = time.time()
-
-for i, c in enumerate(doc.string):
-    if c == '\n':
-        doc.insert_node_at_offset(i, etree.XML('<span>❚</span>'))
-
-with open('/tmp/test.html', 'w', encoding='utf-8') as fp:
-    doc.tree.write(fp)
-
-print(timeb-timea)
-print(timec-timeb)
-print(timed-timec)
+if __name__ == '__main__':
+    parser = etree.HTMLParser()
+    
+    file = '/drive/arXMLiv_mini/1608/1608.09016.html'
+    
+    
+    timea = time.time()
+    tree = etree.parse(file, parser)
+    timeb = time.time()
+    # s = recurse(tree.getroot())
+    doc = Document(tree, True)
+    
+    # assert len(doc.backrefs) == len(doc.string)
+    timec = time.time()
+    print(len(doc.string))
+    doc.cleanup_whitespace()
+    print(len(doc.string))
+    doc.sentence_segmentation()
+    # print(doc.getString())
+    # # remove duplicate spaces
+    # s2 = ''
+    # for c in s:
+    #     if c.isspace() and len(s2) and s2[-1].isspace():
+    #         continue
+    #     s2 += c
+    timed = time.time()
+    
+    for i, c in enumerate(doc.string):
+        if c == '\n':
+            doc.insert_node_at_offset(i, etree.XML('<span>❚</span>'))
+    
+    with open('/tmp/test.html', 'w', encoding='utf-8') as fp:
+        doc.tree.write(fp)
+    
+    print(timeb-timea)
+    print(timec-timeb)
+    print(timed-timec)
