@@ -42,7 +42,7 @@ class Document(object):
         elif node.tag in {'h1','h2','h3','h4','h5','h6'}:
             self.push_const(f'\n@HEADER_START@', ('ns', node))
             recurse = True
-        elif any(c in {'ltx_bibliography', 'ltx_page_footer'} for c in classes):
+        elif node.tag in {'head'} or any(c in {'ltx_bibliography', 'ltx_page_footer'} for c in classes):
             pass
         else:
             recurse = True
@@ -177,7 +177,6 @@ class Document(object):
         assert self.keepbackrefs
         assert 0 <= offset < len(self.backrefs)
         bf = self.backrefs[offset]
-        # TODO: fix backrefs everywhere, fix errors causing from reset of tail/text after insert
         if bf[0] == 'n':
             bf[1].addprevious(node)
         elif bf[0] == 'ns':             # unclear: should it be inside or outside the node?
@@ -185,8 +184,7 @@ class Document(object):
             bf[1].text = None
             bf[1].insert(0, node)
         elif bf[0] == 'ne':             # unclear: should it be inside or outside the node?
-            # node.tail = bf[1].tail
-            bf[1].insert(1, node)
+            bf[1].insert(len(bf[1]), node)
         elif bf[0] == 't':
             node.tail = bf[1].text[bf[2]:]
             bf[1].text = bf[1].text[:bf[2]]
@@ -234,30 +232,26 @@ if __name__ == '__main__':
     timea = time.time()
     tree = etree.parse(file, parser)
     timeb = time.time()
-    # s = recurse(tree.getroot())
     doc = Document(tree, True)
-    
+
     # assert len(doc.backrefs) == len(doc.string)
     timec = time.time()
     print(len(doc.string))
     doc.cleanup_whitespace()
     print(len(doc.string))
     doc.sentence_segmentation()
-    # print(doc.getString())
-    # # remove duplicate spaces
-    # s2 = ''
-    # for c in s:
-    #     if c.isspace() and len(s2) and s2[-1].isspace():
-    #         continue
-    #     s2 += c
+
     timed = time.time()
     
     for i, c in enumerate(doc.string):
         if c == '\n':
-            doc.insert_node_at_offset(i, etree.XML('<span>❚</span>'))
+            doc.insert_node_at_offset(i, etree.XML('<span style="color:#00aa00">❚</span>'))
     
-    with open('/tmp/test.html', 'w', encoding='utf-8') as fp:
+    with open('/tmp/test.html', 'wb') as fp:
         doc.tree.write(fp)
+    with open('/tmp/test.txt', 'w') as fp:
+        fp.write(doc.getString())
+        # fp.write(''.join([c if c != '\n' else f'  {i}\n' for i, c in enumerate(doc.string)]))
     
     print(timeb-timea)
     print(timec-timeb)
