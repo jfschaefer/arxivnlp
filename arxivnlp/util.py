@@ -1,4 +1,4 @@
-
+import os
 
 
 def format_time(seconds):
@@ -10,3 +10,13 @@ def format_time(seconds):
         return f'{seconds/3600:4.1f} hours'
     else:
         return f'{seconds/(24 * 3600):4.1f} days'
+
+
+def find_files(root, check = lambda name : name.endswith('.txt')):
+    files_ = []
+    for subdir, dirs, files in os.walk(root):
+        for file in files:
+            filepath = subdir + os.sep + file
+            if check(filepath):
+                files_.append(filepath)
+    return files_

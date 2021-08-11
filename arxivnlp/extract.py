@@ -42,7 +42,7 @@ class Document(object):
         elif node.tag in {'h1','h2','h3','h4','h5','h6'}:
             self.push_const(f'\n@HEADER_START@', ('ns', node))
             recurse = True
-        elif node.tag in {'head'} or any(c in {'ltx_bibliography', 'ltx_page_footer'} for c in classes):
+        elif node.tag in {'head'} or any(c in {'ltx_bibliography', 'ltx_page_footer', 'ltx_listing'} for c in classes):
             pass
         else:
             recurse = True
