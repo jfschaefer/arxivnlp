@@ -1,4 +1,5 @@
 const DOCID = "1808.02342";
+const HOSTURL = "http://127.0.0.1:5000"
 
 const OPTIONS = {
     "U" : {     // unannotated
@@ -9,23 +10,21 @@ const OPTIONS = {
         "name" : "P",
         "color" : "#f00",
     },
-    "Cl" : {    // clause
-        "name" : "Cl",
+    "NUM" : {     // number
+        "name" : "NUM",
+        "color" : "#fa0",
+    },
+    "CL" : {    // clause
+        "name" : "CL",
         "color" : "#88f",
     },
-    "N" : {     // noun
-        "name" : "N",
+    "ID" : {     // identifier
+        "name" : "ID",
         "color" : "#0fa",
-    },
-    "PN" : {     // proper noun
-        "name" : "PN",
-        "color" : "#fa0",
     },
 };
 
-
-function init() {
-    // LOAD STYLE
+function loadStyle() {
     const styleSheet = document.createElement("style");
     styleSheet.innerText = `
 .popupbox {
@@ -47,13 +46,45 @@ function init() {
 .popupbox .show {
     visibility: visible;
 }
+
+#save {
+    padding: 0.5cm;
+    opacity: 0.9;
+    background-color: gray;
+    font-size: 48pt;
+    position: fixed;
+    top: 0cm;
+    right: 0cm;
+}
 `;
     for (const [key, value] of Object.entries(OPTIONS)) {
         styleSheet.innerText += "." + key + " { background-color: " + value["color"] + "; }\n";
     }
 
     document.head.appendChild(styleSheet);
+}
 
+
+var ANNOTATIONS = {}
+
+async function loadAnnotations() {
+    const response = await fetch(HOSTURL + '/getAnnotations/' + DOCID);
+    ANNOTATIONS = await response.json();
+}
+
+async function storeAnnotations() {
+    const response = await fetch(HOSTURL + '/storeAnnotations/' + DOCID, {
+        method: 'PUT',
+        body: JSON.stringify(ANNOTATIONS),
+        headers: { 'Content-Type': 'application/json' }
+    });
+}
+
+var LAST_CLICKED = "";
+
+async function init() {
+    loadStyle();
+    await loadAnnotations();
 
     // INITIALIZE MATH NODES
     const mathnodes = document.evaluate("//*[name()='math']", document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
@@ -64,9 +95,12 @@ function init() {
 
         const popupcontainer = document.createElement('span');
         popupcontainer.onclick = function () { openPopup(mathnode.id) };
-        popupcontainer.classList.add("U");
+        if (!ANNOTATIONS.hasOwnProperty(mathnode.id)) {
+            ANNOTATIONS[mathnode.id] = "U";
+        }
+        popupcontainer.classList.add(ANNOTATIONS[mathnode.id]);
         popupcontainer.style.position = "relative";
-        
+
         const popup = document.createElement('span');
         popup.innerHTML = "";
         for (const [key, value] of Object.entries(OPTIONS)) {
@@ -81,6 +115,26 @@ function init() {
         popupcontainer.appendChild(mathnode);
     }
 
+    const savebutton = document.createElement('span');
+    savebutton.id = "save";
+    savebutton.style.color = "#0f0";
+    savebutton.textContent = "SAVE";
+    savebutton.onclick = function () { storeAnnotations().then(_ => savebutton.style.color="#0f0")};
+    document.body.appendChild(savebutton);
+
+
+    // support keyboard input
+    window.addEventListener("keydown", function (event) {
+        switch (event.key) {
+            case "1": maybeSelect("ID"); break;
+            case "2": maybeSelect("CL"); break;
+            case "3": maybeSelect("NUM"); break;
+            case "4": maybeSelect("P"); break;
+            case "5": maybeSelect("U"); break;
+            case "s": storeAnnotations().then(_ => savebutton.style.color="#0f0"); break;
+        }
+    });
+
     console.log("Finished Initialization");
 }
 
@@ -91,11 +145,24 @@ function openPopup(mathid) {
     } else {
         popup.style.visibility = "visible";
     }
+    LAST_CLICKED = mathid;
 }
 
 function optionSelect(mathid, value) {
     const popupnode = document.getElementById(mathid + ".popup");
     popupnode.parentNode.classList = value;
+    ANNOTATIONS[mathid] = value;
+    const savebutton = document.getElementById("save");
+    savebutton.style.color = "#f00";
+    LAST_CLICKED = "";
+}
+
+function maybeSelect(value) {
+    if (LAST_CLICKED != "") {
+        const popupnode = document.getElementById(LAST_CLICKED + ".popup");
+        popupnode.style.visibility = "hidden";
+        optionSelect(LAST_CLICKED, value);
+    }
 }
 
 
