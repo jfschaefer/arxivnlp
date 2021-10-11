@@ -8,7 +8,7 @@ def getAnnot(doc_id):
     with open(f'annotations/{doc_id}.json') as f:
         return f.read()
 
-@app.route('/storeAnnotations/<doc_id>')
+@app.route('/storeAnnotations/<doc_id>', methods=['PUT'])
 def storeAnnot(doc_id):
     data = request.get_data(as_text=True)
     with open(f'annotations/{doc_id}.json','w') as f:
