@@ -17,10 +17,8 @@ def storeAnnot(doc_id):
 
 @app.route('/document/<doc_id>')
 def document(doc_id):
-    with open('modify.js') as m:
-        js = m.read()
     with open(f'data/{doc_id}.html') as f:
         s = f.read()
-        new_string = f'<script>\n {js} \n </script> \n </html>'
+        new_string = '<script src="/static/anno.js"></script>\n</html>'
         s = s.replace('</html>', new_string)
     return s
