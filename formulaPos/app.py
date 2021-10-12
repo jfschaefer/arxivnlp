@@ -1,11 +1,16 @@
 from flask import Flask, request
+from pathlib import Path
 
 app = Flask(__name__)
 
 
 @app.route('/getAnnotations/<doc_id>')
 def getAnnot(doc_id):
-    with open(f'annotations/{doc_id}.json') as f:
+    path = Path(f'annotations/{doc_id}.json')
+    if not path.is_file():
+        with open(path,'w') as f:
+            f.write('{}')
+    with open(path) as f:
         return f.read()
 
 @app.route('/storeAnnotations/<doc_id>', methods=['PUT'])
@@ -19,6 +24,6 @@ def storeAnnot(doc_id):
 def document(doc_id):
     with open(f'data/{doc_id}.html') as f:
         s = f.read()
-        new_string = '<script src="/static/anno.js"></script>\n</html>'
+        new_string = f'<script> const DOCID="{doc_id}"; </script>\n <script src="/static/anno.js"></script>\n</html>'
         s = s.replace('</html>', new_string)
     return s
