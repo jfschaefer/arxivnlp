@@ -33,13 +33,15 @@ def document(doc_id):
 @app.route('/')
 def show_links():
     files = os.listdir('data')
-    s = '<html>\n'
+    s = '<html>\n<head><style> li {list-style-type: circle;  margin: 10px; padding: 5px;}</style></head>'
+    s += '<body>\n'
     s += '<ul>\n'
     for filename in files:
         filename = filename[:-5]
         status = check_anno(filename)
-        s += f'<li><a href="http://127.0.0.1:5000/document/{filename}">{filename}   ({status})</a></li>\n'
+        s += f'<li><a href="http://127.0.0.1:5000/document/{filename}">{filename}</a> ({status})</li>\n'
     s += '</ul>\n'
+    s += '</body>\n'
     s += '</html>'
     return s
 
