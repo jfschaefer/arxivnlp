@@ -1,5 +1,7 @@
 from flask import Flask, request
 from pathlib import Path
+import os
+import json
 
 app = Flask(__name__)
 
@@ -27,3 +29,32 @@ def document(doc_id):
         new_string = f'<script> const DOCID="{doc_id}"; </script>\n <script src="/static/anno.js"></script>\n</html>'
         s = s.replace('</html>', new_string)
     return s
+
+@app.route('/')
+def show_links():
+    files = os.listdir('data')
+    s = '<html>\n'
+    s += '<ul>\n'
+    for filename in files:
+        filename = filename[:-5]
+        status = check_anno(filename)
+        s += f'<li><a href="http://127.0.0.1:5000/document/{filename}">{filename}   ({status})</a></li>\n'
+    s += '</ul>\n'
+    s += '</html>'
+    return s
+
+def check_anno(doc_id):
+    path = Path(f'annotations/{doc_id}.json')
+    if not path.is_file():
+        status = '0.00%'
+    with open(path) as f:
+        data = json.load(f)
+        if data == {}:
+            status = '0.00%'
+        else:
+            count_U = 0
+            for anno in data.values():
+                if anno == 'U':
+                    count_U += 1
+            status = f'{100-100*count_U/len(data):.2f}%'
+    return status
