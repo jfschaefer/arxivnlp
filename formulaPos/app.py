@@ -33,7 +33,7 @@ def document(doc_id):
     return s
 
 @app.route('/')
-def show_links():
+def front_page():
     files = os.listdir('data')
     docs = []
     Entry = namedtuple('Entry', ['filename','status'])  #kind of a class, better readability
@@ -44,17 +44,30 @@ def show_links():
     return render_template('front-page.html',data=docs, num_docs=len(files))
 
 def check_anno(doc_id):
+    Status = namedtuple('Status', ['U','NUM','ID','P','CL'])
     path = Path(f'annotations/{doc_id}.json')
     if not path.is_file():
-        status = '0.00%'
+        return Status(U=1,NUM=0,ID=0,P=0,CL=0)
     with open(path) as f:
         data = json.load(f)
         if data == {}:
-            status = '0.00%'
+            return Status(U=1,NUM=0,ID=0,P=0,CL=0)
         else:
             count_U = 0
+            count_NUM = 0
+            count_ID = 0
+            count_P = 0
+            count_CL = 0
             for anno in data.values():
                 if anno == 'U':
                     count_U += 1
-            status = f'{100-100*count_U/len(data):.2f}%'
-    return status
+                elif anno == 'NUM':
+                    count_NUM += 1
+                elif anno == 'ID':
+                    count_ID += 1
+                elif anno == 'P':
+                    count_P += 1
+                elif anno == 'CL':
+                    count_CL += 1
+            d = len(data)
+    return Status(U=count_U/d, NUM=count_NUM/d, ID=count_ID/d, P=count_P/d, CL=count_CL/d)
