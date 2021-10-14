@@ -1,7 +1,9 @@
-from flask import Flask, request
+from flask import Flask, request, render_template
 from pathlib import Path
 import os
 import json
+from collections import namedtuple
+
 
 app = Flask(__name__)
 
@@ -33,17 +35,13 @@ def document(doc_id):
 @app.route('/')
 def show_links():
     files = os.listdir('data')
-    s = '<html>\n<head><style> li {list-style-type: circle;  margin: 10px; padding: 5px;}</style></head>'
-    s += '<body>\n'
-    s += '<ul>\n'
+    docs = []
+    Entry = namedtuple('Entry', ['filename','status'])  #kind of a class, better readability
     for filename in files:
         filename = filename[:-5]
         status = check_anno(filename)
-        s += f'<li><a href="http://127.0.0.1:5000/document/{filename}">{filename}</a> ({status})</li>\n'
-    s += '</ul>\n'
-    s += '</body>\n'
-    s += '</html>'
-    return s
+        docs.append(Entry(filename=filename,status=status))
+    return render_template('front-page.html',data=docs, num_docs=len(files))
 
 def check_anno(doc_id):
     path = Path(f'annotations/{doc_id}.json')
