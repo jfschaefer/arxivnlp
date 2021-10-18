@@ -16,13 +16,16 @@
             {% for entry in data %}
             <li>
                 <a href="http://127.0.0.1:5000/document/{{entry.filename}}">{{entry.filename}}</a> 
+                <span style="min-width: 10cm; display: inline-block">
+                    ({{entry.categories}})
+                </span>
                 <span style="vertical-align: middle; display: inline-block;">
-                <svg width="400" height="22">
-                    <rect x="0" y="0" width="{{400*entry.status.U}}" height="100%" style="fill:#ff0;stroke-width:1.5;stroke:rgb(0,0,0)" /> 
-                    <rect x="{{400*entry.status.U}}" y="0" width="{{400*entry.status.P}}" height="100%" style="fill:#f00;stroke-width:1.5;stroke:rgb(0,0,0)" />
-                    <rect x="{{400*entry.status.U+400*entry.status.P}}" y="0" width="{{400*entry.status.NUM}}" height="100%" style="fill:#fa0;stroke-width:1.5;stroke:rgb(0,0,0)" />
-                    <rect x="{{400*entry.status.U+400*entry.status.P+400*entry.status.NUM}}" y="0" width="{{400*entry.status.CL}}" height="100%" style="fill:#88f;stroke-width:1.5;stroke:rgb(0,0,0)" />
-                    <rect x="{{400*entry.status.U+400*entry.status.P+400*entry.status.NUM+400*entry.status.CL}}" y="0" width="{{400*entry.status.ID}}" height="100%" style="fill:#0fa;stroke-width:1.5;stroke:rgb(0,0,0)" />
+                <svg width="200" height="22">
+                    <rect x="0" y="0" width="{{200*entry.status.U}}" height="100%" style="fill:#ff0;stroke-width:1.5;stroke:rgb(0,0,0)" /> 
+                    <rect x="{{200*entry.status.U}}" y="0" width="{{200*entry.status.P}}" height="100%" style="fill:#f00;stroke-width:1.5;stroke:rgb(0,0,0)" />
+                    <rect x="{{200*entry.status.U+200*entry.status.P}}" y="0" width="{{200*entry.status.NUM}}" height="100%" style="fill:#fa0;stroke-width:1.5;stroke:rgb(0,0,0)" />
+                    <rect x="{{200*entry.status.U+200*entry.status.P+200*entry.status.NUM}}" y="0" width="{{200*entry.status.CL}}" height="100%" style="fill:#88f;stroke-width:1.5;stroke:rgb(0,0,0)" />
+                    <rect x="{{200*entry.status.U+200*entry.status.P+200*entry.status.NUM+200*entry.status.CL}}" y="0" width="{{200*entry.status.ID}}" height="100%" style="fill:#0fa;stroke-width:1.5;stroke:rgb(0,0,0)" />
                 </svg>
                 </span>
                 <span style="background-color:#ff0;">U:{{"%.2f"|format(entry.status.U*100)}}%</span>

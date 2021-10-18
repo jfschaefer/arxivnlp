@@ -34,13 +34,17 @@ def document(doc_id):
 
 @app.route('/')
 def front_page():
+    catgs = []
+    with open('one_id_all_categories.json') as f:
+        data = json.load(f)
     files = os.listdir('data')
     docs = []
-    Entry = namedtuple('Entry', ['filename','status'])  #kind of a class, better readability
+    Entry = namedtuple('Entry', ['filename','status','categories'])  #kind of a class, better readability
     for filename in files:
         filename = filename[:-5]
         status = check_anno(filename)
-        docs.append(Entry(filename=filename,status=status))
+        catgs = data[filename].replace(' ',', ')
+        docs.append(Entry(filename=filename,status=status,categories=catgs))
     return render_template('front-page.html',data=docs, num_docs=len(files))
 
 def check_anno(doc_id):
