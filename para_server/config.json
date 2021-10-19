@@ -1,0 +1,25 @@
+{
+    "tags": [
+        {
+            "displayname": "Number",
+            "id": "NUM",
+            "color": "#0fa"
+        },
+        {
+            "displayname": "Clause",
+            "id": "CL",
+            "color": "#88f"
+        }, 
+        {
+            "displayname": "Unannotated",
+            "id": "U",
+            "color": "#ff0"
+        },
+        {
+            "displayname": "Problematic",
+            "id": "P",
+            "color": "#f00"
+        }
+    ],
+    "defaulttag": "U"
+}
