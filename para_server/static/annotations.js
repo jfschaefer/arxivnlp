@@ -6,8 +6,8 @@ var ANNOTATIONS = {};
 var FILENAME = null;
 
 
-async function next() {
-    const response = await fetch('http://127.0.0.1:5000/getRandomParagraph');
+async function getParagraph(arg) {
+    const response = await fetch('http://127.0.0.1:5000/getParagraph/' + arg);
     const paragraph = await response.json();
     document.getElementById('paragraph').innerHTML = paragraph['html'];
     FILENAME = paragraph['filename'];
@@ -37,7 +37,6 @@ function initMathwrappers() {
     MATH_TO_INDEX = {};
     INDEX_TO_MATH = [];
     SELECTED = null;
-    ANNOTATIONS = {};
     const mathnodes = document.evaluate("//*[name()='math']", document, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
     console.log("Initializing " + mathnodes.snapshotLength + " math nodes");
     for (let i = 0; i < mathnodes.snapshotLength; i++) {

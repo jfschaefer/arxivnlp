@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+        
+        </style>
+    </head>
+    <body>
+        {% for para,filename in paras %}
+        <a href='http://127.0.0.1:5000/annotate/{{filename}}'>GO TO ANNOTATE</a>
+        <div id="paragraph">{{para|safe}}</div>
+        <hr></hr>
+        {% endfor %}
+    </body>
+</html>

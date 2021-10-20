@@ -50,11 +50,18 @@
         </style>
         <script> const DEFAULTTAG = '{{config["defaulttag"]}}'; </script>
         <script src="/static/annotations.js"></script>
+        <script> 
+            window.onload = function() {
+                getParagraph("{{filename}}");
+            };
+        </script>
     </head>
     <body>
         <div>
             <div id="sidebar">
-                <button class="button next" onclick="next();">NEXT</button>
+                <button class="button next" onclick="getParagraph('unannotated');">GET UNANNOTATED</button>
+                <button class="button next" onclick="getParagraph('annotated');">GET ANNOTATED</button>
+                <button class="button next" onclick="getParagraph('random');">GET RANDOM</button>
                 <button id="savebutton" class="button save" onclick="storeAnnotations();">SAVE</button>
                 {% for tag in config["tags"] %}
                 <button class="button {{tag["id"]}}" onclick="annotate('{{tag["id"]}}');">{{tag["displayname"]}}</button>
