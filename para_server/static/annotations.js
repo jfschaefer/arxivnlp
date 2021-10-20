@@ -11,6 +11,7 @@ async function next() {
     const paragraph = await response.json();
     document.getElementById('paragraph').innerHTML = paragraph['html'];
     FILENAME = paragraph['filename'];
+    ANNOTATIONS = paragraph['annotations'];
     initMathwrappers();
 }
 

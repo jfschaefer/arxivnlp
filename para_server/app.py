@@ -18,8 +18,11 @@ def get_rparagraph():
     filename = random.choice(paras)
     with open(f'paragraphs/{filename}') as f:
         content = f.read()
-        p = jsonify({'html':content, 'filename':filename})
-    return p
+    annotations = {}
+    if os.path.isfile(f'annotations/{filename}.json'):
+        with open(f'annotations/{filename}.json', 'r') as f:
+            annotations = json.load(f)
+    return jsonify({'html':content, 'filename':filename, 'annotations':annotations})
 
 @app.route('/storeAnnos/<par_id>', methods=['PUT'])
 def store_annos(par_id):
