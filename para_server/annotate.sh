@@ -1,0 +1,17 @@
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.00342:S5.13.p1.html           > autoannotated/1608.00342:S5.13.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.00342:S5.8.p2.html            > autoannotated/1608.00342:S5.8.p2.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.01242:S3.p18.html             > autoannotated/1608.01242:S3.p18.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.01242:S3.p29.html             > autoannotated/1608.01242:S3.p29.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.01742:A1.12.p12.html          > autoannotated/1608.01742:A1.12.p12.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.02242:S3.p9.html              > autoannotated/1608.02242:S3.p9.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.02242:S4.ThmDef16.p1.html     > autoannotated/1608.02242:S4.ThmDef16.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.03342:S8.Thmthm4.p1.html      > autoannotated/1608.03342:S8.Thmthm4.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.04542:S2.I1.i1.p1.html        > autoannotated/1608.04542:S2.I1.i1.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.04642:S5.SS4.SSS0.Px1.p1.html > autoannotated/1608.04642:S5.SS4.SSS0.Px1.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.04742:A1.p1.html              > autoannotated/1608.04742:A1.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.05342:S5.SS3.p6.html          > autoannotated/1608.05342:S5.SS3.p6.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.05422:S4.p2.html              > autoannotated/1608.05422:S4.p2.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.06642:A1.SS2.SSS1.p4.html     > autoannotated/1608.06642:A1.SS2.SSS1.p4.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.07842:S3.1.p1.html            > autoannotated/1608.07842:S3.1.p1.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.08572:S4.SS1.p9.html          > autoannotated/1608.08572:S4.SS1.p9.html.json
+python ../arxivnlp/formulaClassification.py /drive/arXMLiv_mini/paragraphs/1608.08592:S4.31.p19.html          > autoannotated/1608.08592:S4.31.p19.html.json

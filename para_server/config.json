@@ -1,25 +1,36 @@
 {
     "tags": [
         {
-            "displayname": "Number",
-            "id": "NUM",
-            "color": "#0fa"
+            "displayname": "o",
+            "id": "o",
+            "color": "#0fa",
+            "key": "4"
         },
         {
-            "displayname": "Clause",
-            "id": "CL",
-            "color": "#88f"
+            "displayname": "ι",
+            "id": "iota",
+            "color": "#88f",
+            "key": "3"
+        }, 
+        {
+            "displayname": "Frag",
+            "id": "f",
+            "color": "#f80",
+            "key": "5"
         }, 
         {
             "displayname": "Unannotated",
             "id": "U",
-            "color": "#ff0"
+            "color": "#ff0",
+            "key": "1"
         },
         {
             "displayname": "Problematic",
             "id": "P",
-            "color": "#f00"
+            "color": "#f00",
+            "key": "2"
         }
     ],
-    "defaulttag": "U"
+    "defaulttag": "U",
+    "annotationsdir": "autoannotated"
 }

@@ -51,6 +51,7 @@
         <script> const DEFAULTTAG = '{{config["defaulttag"]}}'; </script>
         <script src="/static/annotations.js"></script>
         <script> 
+            CONFIG = {{json.dumps(config)|safe}};
             window.onload = function() {
                 getParagraph("{{filename}}");
             };
