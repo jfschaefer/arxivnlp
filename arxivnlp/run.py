@@ -44,8 +44,31 @@ def regex_match():
             for match in expr.finditer(fp.read()):
                 print(match.group('t'))
 
+def paragraph_split():
+    ''' Generates individual files for every paragraph (ltx_para) from a list of files.
+    Example call: run.py paragraph_split *.html path/to/outdir '''
+    parser = etree.HTMLParser()
+    assert len(sys.argv) > 3
+    files = sys.argv[2:-1]
+    outfolder = sys.argv[-1]
+    start = time.time()
+    for i, file in enumerate(files):
+        print(f'Processing file {i}/{len(files)}')
+        if i > 2:
+            now = time.time()
+            print('Expected remaining time:', util.format_time((now-start)*(len(files)-i)/i))
+        if not file.endswith('.html'):
+            print(f'Skipping {file} (doesn\'t end with .html)')
+        tree = etree.parse(file, parser)
+        paras = tree.xpath('//div[contains(@class, "ltx_para")]')
+        for para in paras:
+            with open(os.path.join(outfolder, os.path.basename(file)[:-5] + ':' + para.attrib['id'] + '.html'), 'wb') as fp:
+                fp.write(etree.tostring(para))
+        print(f'Number of extracted paragraphs: {len(paras)}')
+
+
 if __name__ == '__main__':
-    commands = {f.__name__ : f for f in [generate_plaintext, regex_match]}
+    commands = {f.__name__ : f for f in [generate_plaintext, regex_match, paragraph_split]}
     a = sys.argv
     if len(a) < 3:
         print('not enough arguments')

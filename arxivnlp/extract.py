@@ -34,7 +34,7 @@ class Document(object):
         class_val = node.get('class')
         classes = set(class_val.split()) if class_val else set()
         recurse = False
-        if node.tag == 'math' or 'ltx_equationgroup' in classes:
+        if node.tag == 'math' or 'ltx_equationgroup' in classes or 'ltx_equation' in classes:
             self.push_const(f'@FORMULA{len(self.formulae)}@', ('n', node))
             self.formulae.append(node)
         elif node.tag == 'cite':
@@ -153,7 +153,7 @@ class Document(object):
                     newchars.append('\n')
                     continue
                 if len(newchars) > 5 and newchars[-1] in {'.', '?', '!'} and len(self.string) > i+1 and \
-                            (self.string[i+1].isupper() or \
+                            (self.string[i+1].isupper() or
                             # probably a new sentence
                             self.string[i+1] == '@' and newchars[-3] != '.'):  # probably a new sentence (make sure it wasn't "i.e." etc.)
                     newchars.append('\n')
@@ -226,10 +226,10 @@ class Document(object):
 if __name__ == '__main__':
     import sys
     parser = etree.HTMLParser()
-    
+
     file = sys.argv[1] # '/drive/arXMLiv_mini/1608/1608.09016.html'
-    
-    
+
+
     timea = time.time()
     tree = etree.parse(file, parser)
     timeb = time.time()
@@ -243,17 +243,17 @@ if __name__ == '__main__':
     doc.sentence_segmentation()
 
     timed = time.time()
-    
+
     for i, c in enumerate(doc.string):
         if c == '\n':
             doc.insert_node_at_offset(i, etree.XML('<span style="color:#00aa00">❚</span>'))
-    
+
     with open('/tmp/test.html', 'wb') as fp:
         doc.tree.write(fp)
     with open('/tmp/test.txt', 'w') as fp:
         fp.write(doc.getString())
         # fp.write(''.join([c if c != '\n' else f'  {i}\n' for i, c in enumerate(doc.string)]))
-    
+
     print(timeb-timea)
     print(timec-timeb)
     print(timed-timec)
