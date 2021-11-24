@@ -23,8 +23,8 @@ class Config(object):
         config = Config()
         if 'DATA' in parser:
             config.arxmliv_dir = parser['DATA'].get('ArXMLivDir')
-            config.other_data_dir = parser['DATA'].get('OtherDataDir')
-            config.cache_dir = parser['DATA'].get('CacheDir')
+            config.other_data_dir = Path(parser['DATA'].get('OtherDataDir'))
+            config.cache_dir = Path(parser['DATA'].get('CacheDir'))
             config.results_dir = parser['DATA'].get('ResultsDir')
         return config
 
@@ -34,7 +34,7 @@ class Config(object):
         # possible locations for config files
         options = [Path('~/.arxivnlp.conf'), Path('~/arxivnlp.conf'), Path('~/.config/arxivnlp.conf')]
         for path in options:
-            path.expanduser()
+            path = path.expanduser()
             if path.is_file():
                 logger.info(f'Loading config from {path}')
                 return Config.from_file(path)
