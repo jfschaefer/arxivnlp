@@ -4,6 +4,7 @@ from arxivnlp.data.arxivcategories import ArxivCategories
 
 
 class TestData(unittest.TestCase):
+    @unittest.skip('temporary skipping')
     def test_arxivcats(self):
         config = Config.get()
         arxivcats = ArxivCategories(config)

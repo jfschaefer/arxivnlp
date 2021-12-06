@@ -1,4 +1,4 @@
-from typing import Set, List
+from typing import Set, List, Tuple
 from lxml import etree
 
 
@@ -47,10 +47,27 @@ class Dnm(object):
         self.tokens: List[StringToken] = []
         self.dnm_config = dnm_config
         self.append_to_stream(tree.getroot())
+        result = self.generate_string()
+        self.string: str = result[0]
+        self.backrefs: List[Tuple[StringToken, int]] = result[1]
 
     def append_to_stream(self, node: etree.Element):
         if not self.dnm_config.skip_node(node):
-            self.tokens.append(StringToken(content=node.text, backref_node=node, backref_type='text'))
+            if node.text:
+                self.tokens.append(StringToken(content=node.text, backref_node=node, backref_type='text'))
             for child in node:
                 self.append_to_stream(child)
-                self.tokens.append(StringToken(content=child.tail, backref_node=child, backref_type='tail'))
+                if child.tail:
+                    self.tokens.append(StringToken(content=child.tail, backref_node=child, backref_type='tail'))
+
+    def generate_string(self) -> Tuple[str, List[Tuple[StringToken, int]]]:
+        string = ''
+        backrefs = []
+        for token in self.tokens:
+            string += token.content
+            backrefs.extend([(token,pos) for pos in range(len(token.content))])
+        return string, backrefs
+
+    def insert_node(self, node: etree.Element, pos: int):
+        token, pos_relative = self.backrefs[pos]
+        token.insert_node(node, pos_relative)
