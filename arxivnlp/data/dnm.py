@@ -19,7 +19,15 @@ class DnmConfig(object):
         return False
 
 
-class StringToken(object):
+class Token(object):
+    def get_string(self) -> str:
+        raise NotImplemented
+
+    def insert_node(self, node: etree.Element, pos: int):
+        raise NotImplemented
+
+
+class StringToken(Token):
     def __init__(self, content: str, backref_node: etree.Element, backref_type: str):
         self.content = content
         self.backref_node = backref_node
@@ -41,31 +49,45 @@ class StringToken(object):
             raise Exception(f'Unsupported backref type {self.backref_type}')
 
 
+class NodeToken(Token):
+    def __init__(self, backref_node: etree.Element):
+        self.backref_node = backref_node
+
+    def get_string(self) -> str:
+        return "MathNode"
+
+    def insert_node(self, node: etree.Element, pos: int):
+        self.backref_node.addprevious(node)
+
+
 class Dnm(object):
     def __init__(self, tree: etree.ElementTree, dnm_config: DnmConfig):
         self.tree = tree
-        self.tokens: List[StringToken] = []
+        self.tokens: List[Token] = []
         self.dnm_config = dnm_config
         self.append_to_stream(tree.getroot())
         result = self.generate_string()
         self.string: str = result[0]
-        self.backrefs: List[Tuple[StringToken, int]] = result[1]
+        self.backrefs: List[Tuple[Token, int]] = result[1]
 
     def append_to_stream(self, node: etree.Element):
         if not self.dnm_config.skip_node(node):
-            if node.text:
-                self.tokens.append(StringToken(content=node.text, backref_node=node, backref_type='text'))
-            for child in node:
-                self.append_to_stream(child)
-                if child.tail:
-                    self.tokens.append(StringToken(content=child.tail, backref_node=child, backref_type='tail'))
+            if node.tag == 'math':
+                self.tokens.append(NodeToken(backref_node=node))
+            else:
+                if node.text:
+                    self.tokens.append(StringToken(content=node.text, backref_node=node, backref_type='text'))
+                for child in node:
+                    self.append_to_stream(child)
+                    if child.tail:
+                        self.tokens.append(StringToken(content=child.tail, backref_node=child, backref_type='tail'))
 
-    def generate_string(self) -> Tuple[str, List[Tuple[StringToken, int]]]:
+    def generate_string(self) -> Tuple[str, List[Tuple[Token, int]]]:
         string = ''
         backrefs = []
         for token in self.tokens:
-            string += token.content
-            backrefs.extend([(token,pos) for pos in range(len(token.content))])
+            string += token.get_string()
+            backrefs.extend([(token,pos) for pos in range(len(token.get_string()))])
         return string, backrefs
 
     def insert_node(self, node: etree.Element, pos: int):
