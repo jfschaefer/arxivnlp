@@ -111,6 +111,55 @@ class Dnm(object):
         token, pos_relative = self.backrefs[pos]
         token.insert_node(node, pos_relative)
 
+    def get_full_substring(self) -> 'SubString':
+        return SubString(self.string, backrefs=list(range(len(self.string))), dnm=self)
+
+
+class SubString(object):
+    def __init__(self, string: str, backrefs: List[int], dnm: Dnm):
+        assert len(string) == len(backrefs)
+        self.string = string
+        self.backrefs = backrefs
+        self.dnm = dnm
+
+    def __len__(self):
+        return len(self.string)
+
+    def __getitem__(self, item) -> 'SubString':
+        return SubString(string=self.string[item], backrefs=self.backrefs[item], dnm=self.dnm)
+
+    def __repr__(self):
+        return f'SubString({repr(self.string)})'
+
+    def strip(self) -> 'SubString':
+        str_start = 0
+        str_end = 0
+        for i in range(len(self.string)):
+            if not self.string[i].isspace():
+                str_start = i
+                break
+        for i in range(len(self.string)-1, -1, -1):
+            if not self.string[i].isspace():
+                str_end = i+1
+                break
+        return self[str_start:str_end]
+
+    def normalize_spaces(self) -> 'SubString':
+        new_string = ''
+        new_backrefs = []
+        for i in range(len(self)):
+            if not self.string[i].isspace():
+                new_string += self.string[i]
+                new_backrefs.append(self.backrefs[i])
+            else:
+                if not (i >= 1 and self.string[i-1].isspace()):
+                    new_string += ' '
+                    new_backrefs.append(self.backrefs[i])
+        return SubString(string=new_string, backrefs=new_backrefs, dnm=self.dnm)
+
+
+
+
 
 DEFAULT_DNM_CONFIG = DnmConfig(nodes_to_skip={'head', 'figure'},
                                classes_to_skip={'ltx_bibliography', 'ltx_page_footer', 'ltx_dates', 'ltx_authors',
