@@ -41,6 +41,9 @@ class Token(object):
     def insert_node(self, node: etree.Element, pos: int):
         raise NotImplemented
 
+    def get_surrounding_node(self) -> etree.Element:
+        raise NotImplemented
+
 
 class StringToken(Token):
     def __init__(self, content: str, backref_node: etree.Element, backref_type: str):
@@ -63,6 +66,13 @@ class StringToken(Token):
         else:
             raise Exception(f'Unsupported backref type {self.backref_type}')
 
+    def get_surrounding_node(self) -> etree.Element:
+        if self.backref_type == 'text':
+            return self.backref_node
+        elif self.backref_type == 'tail':
+            return self.backref_node.getparent()
+        else:
+            raise Exception(f'Unsupported backref type {self.backref_type}')
 
 class NodeToken(Token):
     def __init__(self, backref_node: etree.Element, replaced_string: str):
@@ -74,6 +84,9 @@ class NodeToken(Token):
 
     def insert_node(self, node: etree.Element, pos: int):
         self.backref_node.addprevious(node)
+
+    def get_surrounding_node(self) -> etree.Element:
+        return self.backref_node
 
 
 class Dnm(object):
@@ -130,6 +143,9 @@ class SubString(object):
 
     def __repr__(self):
         return f'SubString({repr(self.string)})'
+
+    def get_node(self, pos: int) -> etree.Element:
+        return self.dnm.backrefs[self.backrefs[pos]][0].get_surrounding_node()
 
     def strip(self) -> 'SubString':
         str_start = 0
