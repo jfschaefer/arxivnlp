@@ -179,7 +179,9 @@ class SubString(object):
 
 DEFAULT_DNM_CONFIG = DnmConfig(nodes_to_skip={'head', 'figure'},
                                classes_to_skip={'ltx_bibliography', 'ltx_page_footer', 'ltx_dates', 'ltx_authors',
-                                                'ltx_role_affiliationtext', 'ltx_tag_equation', 'ltx_classification'},
+                                                'ltx_role_affiliationtext', 'ltx_tag_equation', 'ltx_classification',
+                                                'ltx_tag_section', 'ltx_tag_subsection'},
                                nodes_to_replace={'math': 'MathNode'},
                                classes_to_replace={'ltx_equationgroup': 'MathGroup', 'ltx_cite': 'LtxCite',
-                                                   'ltx_ref': 'LtxRef', 'ltx_ref_tag': 'LtxRef'})
+                                                   'ltx_ref': 'LtxRef', 'ltx_ref_tag': 'LtxRef',
+                                                   'ltx_equation': 'MathEquation'})

@@ -8,7 +8,7 @@ import io
 class TestDnm(unittest.TestCase):
     def test_sentence_tokenize(self):
         parser = etree.HTMLParser()
-        source = os.path.join(os.path.dirname(__file__),'resources','1608.09008.html')
+        source = os.path.join(os.path.dirname(__file__),'resources','1608.05390.html')
         tree = etree.parse(source, parser)
         doc = Dnm(tree, dnm_config=DEFAULT_DNM_CONFIG)
         with open('1608.05390.txt','w') as f:
