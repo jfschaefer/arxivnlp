@@ -1,6 +1,8 @@
 import dataclasses
 import configparser
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -18,7 +20,7 @@ class Config(object):
 
     @classmethod
     def from_file(cls, file_path: Path) -> 'Config':
-        parser = configparser.ConfigParser()
+        parser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         parser.read(file_path)
         config = Config()
         if 'DATA' in parser:
@@ -32,7 +34,8 @@ class Config(object):
     def get(cls) -> 'Config':
         logger = logging.getLogger(__name__)
         # possible locations for config files
-        options = [Path('~/.arxivnlp.conf'), Path('~/arxivnlp.conf'), Path('~/.config/arxivnlp.conf')]
+        options = [Path('arxivnlp.conf'), Path('.arxivnlp.conf'),
+                   Path('~/arxivnlp.conf'), Path('~/.arxivnlp.conf'), Path('~/.config/arxivnlp.conf')]
         for path in options:
             path = path.expanduser()
             if path.is_file():
@@ -40,3 +43,35 @@ class Config(object):
                 return Config.from_file(path)
         logger.warning(f'Failed to find a configuration file.')
         return Config()
+
+
+def configure(rootdir: Path, configfile=Path('~/.arxivnlp.conf')):
+    import jinja2
+    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(Path(os.path.dirname(__file__))/'resources'))
+    if configfile.is_file():
+        print(f'Error: {str(configfile)} already exists.', file=sys.stderr)
+        sys.exit(1)
+    if not rootdir.is_dir():
+        print(f'Creating {str(rootdir)}')
+        rootdir.mkdir()
+    with open(configfile, 'w') as fp:
+        fp.write(j2_env.get_template('config-template.conf').render(root=str(rootdir)))
+    print(f'Successfully created {str(configfile)}')
+
+
+if __name__ == '__main__':
+    def main():
+        defaultrootdir = os.path.expanduser('~/arxivnlp')
+        defaultconffile = os.path.expanduser('~/.arxivnlp.conf')
+        import argparse
+        parser = argparse.ArgumentParser(description='Create configuration file', add_help=True)
+        parser.add_argument('--data-root', dest='rootdir', default=defaultrootdir,
+                            help=f'Root directory for data (default: {defaultrootdir}')
+        parser.add_argument('--file', dest='file', default=defaultconffile,
+                            help=f'Name of the configuration file (default: {defaultconffile}, '
+                                 'warning: might not be found if changed)')
+        args = parser.parse_args()
+        configure(Path(args.rootdir), Path(args.file))
+
+
+    main()

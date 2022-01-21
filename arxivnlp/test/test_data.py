@@ -1,10 +1,11 @@
 import unittest
 from arxivnlp.config import Config
 from arxivnlp.data.arxivcategories import ArxivCategories
+from arxivnlp.test import utils
 
 
 class TestData(unittest.TestCase):
-    @unittest.skip('temporary skipping')
+    @utils.smart_skip(requires_data=True, is_slow=True)
     def test_arxivcats(self):
         config = Config.get()
         arxivcats = ArxivCategories(config)
