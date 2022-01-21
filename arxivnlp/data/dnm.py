@@ -74,6 +74,7 @@ class StringToken(Token):
         else:
             raise Exception(f'Unsupported backref type {self.backref_type}')
 
+
 class NodeToken(Token):
     def __init__(self, backref_node: etree.Element, replaced_string: str):
         self.backref_node = backref_node
@@ -154,9 +155,9 @@ class SubString(object):
             if not self.string[i].isspace():
                 str_start = i
                 break
-        for i in range(len(self.string)-1, -1, -1):
+        for i in range(len(self.string) - 1, -1, -1):
             if not self.string[i].isspace():
-                str_end = i+1
+                str_end = i + 1
                 break
         return self[str_start:str_end]
 
@@ -168,13 +169,10 @@ class SubString(object):
                 new_string += self.string[i]
                 new_backrefs.append(self.backrefs[i])
             else:
-                if not (i >= 1 and self.string[i-1].isspace()):
+                if not (i >= 1 and self.string[i - 1].isspace()):
                     new_string += ' '
                     new_backrefs.append(self.backrefs[i])
         return SubString(string=new_string, backrefs=new_backrefs, dnm=self.dnm)
-
-
-
 
 
 DEFAULT_DNM_CONFIG = DnmConfig(nodes_to_skip={'head', 'figure'},

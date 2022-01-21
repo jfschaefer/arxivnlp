@@ -43,10 +43,9 @@ class ArxivCategories(object):
         self._load_from_original()
 
     def _load_from_cache(self, cache_dir: Path) -> bool:
-        with open(cache_dir/'condensed.json', 'r') as fp:
+        with open(cache_dir / 'condensed.json', 'r') as fp:
             self._doc_to_cats = json.load(fp)
         return True  # success
-
 
     def _load_from_original(self):
         path = utils.require_other_data(self.config, Path('arxiv-metadata-oai-snapshot.json'))
@@ -58,10 +57,7 @@ class ArxivCategories(object):
                     continue
                 content = json.loads(line)
                 self._doc_to_cats[content['id']] = content['categories'].split()
-        cache_dir = self.config.cache_dir/'arxiv_categories'
+        cache_dir = self.config.cache_dir / 'arxiv_categories'
         cache_dir.mkdir()
-        with open(cache_dir/'condensed.json','w') as fp:
+        with open(cache_dir / 'condensed.json', 'w') as fp:
             json.dump(self._doc_to_cats, fp)
-
-
-

@@ -1,5 +1,3 @@
 
-
-
 class MissingDataException(Exception):
     pass
