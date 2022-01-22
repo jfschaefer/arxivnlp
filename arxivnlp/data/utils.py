@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Optional
 
-from .exceptions import MissingDataException
-from ..config import Config, MissingConfigException
+from arxivnlp.data.exceptions import MissingDataException
+from arxivnlp.config import Config, MissingConfigException
 
 
 def require_other_data(config: Config, rel_path: Path) -> Path:

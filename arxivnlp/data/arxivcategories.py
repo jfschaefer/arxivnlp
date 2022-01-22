@@ -1,9 +1,10 @@
-import logging
 import json
+import logging
 from pathlib import Path
 from typing import Optional, Dict, List
-from ..config import Config
+
 from . import utils
+from ..config import Config
 
 
 class ArxivCategories(object):

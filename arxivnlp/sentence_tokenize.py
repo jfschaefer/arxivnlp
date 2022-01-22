@@ -1,5 +1,7 @@
 from typing import List, Optional
+
 from lxml import etree
+
 from arxivnlp.data.dnm import SubString, get_node_classes
 
 

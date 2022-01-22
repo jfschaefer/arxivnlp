@@ -1,8 +1,10 @@
-import unittest
-from arxivnlp.data.dnm import Dnm, DnmConfig, DEFAULT_DNM_CONFIG
-from lxml import etree
-import os
 import io
+import os
+import unittest
+
+from lxml import etree
+
+from arxivnlp.data.dnm import Dnm, DnmConfig, DEFAULT_DNM_CONFIG
 
 
 class TestDnm(unittest.TestCase):

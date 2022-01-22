@@ -1,10 +1,14 @@
-import dataclasses
 import configparser
+import dataclasses
 import logging
 import os
 import sys
 from pathlib import Path
 from typing import Optional
+
+
+def str_to_path_if_not_none(path: Optional[str]) -> Optional[Path]:
+    return Path(path) if path else None
 
 
 class MissingConfigException(Exception):
@@ -13,6 +17,7 @@ class MissingConfigException(Exception):
 
 @dataclasses.dataclass
 class Config(object):
+    config_file: Optional[Path] = None
     arxmliv_dir: Optional[Path] = None
     other_data_dir: Optional[Path] = None
     cache_dir: Optional[Path] = None
@@ -23,16 +28,23 @@ class Config(object):
         parser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         parser.read(file_path)
         config = Config()
+        config.config_file = file_path
+        to_path = str_to_path_if_not_none
         if 'DATA' in parser:
-            config.arxmliv_dir = parser['DATA'].get('ArXMLivDir')
-            config.other_data_dir = Path(parser['DATA'].get('OtherDataDir'))
-            config.cache_dir = Path(parser['DATA'].get('CacheDir'))
-            config.results_dir = parser['DATA'].get('ResultsDir')
+            config.arxmliv_dir = to_path(parser['DATA'].get('ArXMLivDir'))
+            config.other_data_dir = to_path(parser['DATA'].get('OtherDataDir'))
+            config.cache_dir = to_path(parser['DATA'].get('CacheDir'))
+            config.results_dir = to_path(parser['DATA'].get('ResultsDir'))
         return config
 
     @classmethod
     def get(cls) -> 'Config':
         logger = logging.getLogger(__name__)
+        if cls.config_file is not None:
+            if not cls.config_file:
+                raise MissingConfigException(f'File "{cls.config_file}" does not exist.')
+            logger.info(f'Loading config from {cls.config_file}')
+            return Config.from_file(cls.config_file)
         # possible locations for config files
         options = [Path('arxivnlp.conf'), Path('.arxivnlp.conf'),
                    Path('~/arxivnlp.conf'), Path('~/.arxivnlp.conf'), Path('~/.config/arxivnlp.conf')]
@@ -47,7 +59,7 @@ class Config(object):
 
 def configure(rootdir: Path, configfile=Path('~/.arxivnlp.conf')):
     import jinja2
-    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(Path(os.path.dirname(__file__))/'resources'))
+    j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(Path(os.path.dirname(__file__)) / 'resources'))
     if configfile.is_file():
         print(f'Error: {str(configfile)} already exists.', file=sys.stderr)
         sys.exit(1)
