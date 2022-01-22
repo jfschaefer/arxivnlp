@@ -39,7 +39,7 @@ class Token(object):
     def get_string(self) -> str:
         raise NotImplemented
 
-    def insert_node(self, node: etree.Element, pos: int):
+    def insert_node(self, node: etree.Element, pos: int, after: bool = False):
         raise NotImplemented
 
     def get_surrounding_node(self) -> etree.Element:
@@ -55,7 +55,9 @@ class StringToken(Token):
     def get_string(self) -> str:
         return self.content
 
-    def insert_node(self, node: etree.Element, pos: int):
+    def insert_node(self, node: etree.Element, pos: int, after: bool = False):
+        if after:
+            pos += 1
         if self.backref_type == 'text':
             self.backref_node.insert(0, node)  # 0 means child no. 0
             node.tail = self.backref_node.text[pos:]
@@ -84,8 +86,11 @@ class NodeToken(Token):
     def get_string(self) -> str:
         return self.replaced_string
 
-    def insert_node(self, node: etree.Element, pos: int):
-        self.backref_node.addprevious(node)
+    def insert_node(self, node: etree.Element, pos: int, after: bool = False):
+        if after:
+            self.backref_node.addnext(node)
+        else:
+            self.backref_node.addprevious(node)
 
     def get_surrounding_node(self) -> etree.Element:
         return self.backref_node
@@ -94,14 +99,18 @@ class NodeToken(Token):
 class Dnm(object):
     def __init__(self, tree: etree.ElementTree, dnm_config: DnmConfig):
         self.tree = tree
-        self.tokens: List[Token] = []
         self.dnm_config = dnm_config
-        self.append_to_stream(tree.getroot())
+        self.is_clean: bool = True  # backrefs are still consistent with tree
+
+        self.tokens: List[Token] = []
+        self._append_to_tokens(tree.getroot())
         result = self.generate_string()
         self.string: str = result[0]
         self.backrefs: List[Tuple[Token, int]] = result[1]
 
-    def append_to_stream(self, node: etree.Element):
+        self.nodes_to_add: List[Tuple[etree.Element, int, bool]] = []
+
+    def _append_to_tokens(self, node: etree.Element):
         if not self.dnm_config.skip_node(node):
             replacement = self.dnm_config.replace_node(node)
             if replacement is not None:
@@ -110,7 +119,7 @@ class Dnm(object):
                 if node.text:
                     self.tokens.append(StringToken(content=node.text, backref_node=node, backref_type='text'))
                 for child in node:
-                    self.append_to_stream(child)
+                    self._append_to_tokens(child)
                     if child.tail:
                         self.tokens.append(StringToken(content=child.tail, backref_node=child, backref_type='tail'))
 
@@ -122,15 +131,31 @@ class Dnm(object):
             backrefs.extend([(token, pos) for pos in range(len(token.get_string()))])
         return string, backrefs
 
-    def insert_node(self, node: etree.Element, pos: int):
-        token, pos_relative = self.backrefs[pos]
-        token.insert_node(node, pos_relative)
+    def add_node(self, node: etree.Element, pos: int, after: bool = False):
+        self.nodes_to_add.append((node, pos, after))
 
-    def get_full_substring(self) -> 'SubString':
-        return SubString(self.string, backrefs=list(range(len(self.string))), dnm=self)
+    def insert_added_nodes(self, ignore_is_clean: bool = False):
+        if (not self.is_clean) and not ignore_is_clean:
+            raise Exception('Nodes have already been added to the tree and some back references may be wrong. '
+                            'Adding new nodes can lead to undefined behaviour')
+        if self.nodes_to_add:
+            self.is_clean = False
+        l = list(enumerate(self.nodes_to_add))
+        # Sorting strategy:
+        # 1. from back to front
+        # 2. first after
+        # 3. prefer the ones inserted first, unless it is a string token (and not after)
+        l.sort(key=lambda e: (-e[1][1], -int(e[1][2]), -e[0] if isinstance(self.backrefs[e[1][1]][0], StringToken) and not e[1][2] else e[0]))
+        for node, pos, after in (e[1] for e in l):
+            token, pos_relative = self.backrefs[pos]
+            token.insert_node(node, pos_relative, after)
+        self.nodes_to_add = []
+
+    def get_full_dnmstr(self) -> 'DnmStr':
+        return DnmStr(self.string, backrefs=list(range(len(self.string))), dnm=self)
 
 
-class SubString(object):
+class DnmStr(object):
     def __init__(self, string: str, backrefs: List[int], dnm: Dnm):
         assert len(string) == len(backrefs)
         self.string = string
@@ -140,8 +165,9 @@ class SubString(object):
     def __len__(self):
         return len(self.string)
 
-    def __getitem__(self, item) -> 'SubString':
-        return SubString(string=self.string[item], backrefs=self.backrefs[item], dnm=self.dnm)
+    def __getitem__(self, item) -> 'DnmStr':
+        backrefs = [self.backrefs[item]] if isinstance(item, int) else self.backrefs[item]
+        return DnmStr(string=self.string[item], backrefs=backrefs, dnm=self.dnm)
 
     def __repr__(self):
         return f'SubString({repr(self.string)})'
@@ -149,7 +175,7 @@ class SubString(object):
     def get_node(self, pos: int) -> etree.Element:
         return self.dnm.backrefs[self.backrefs[pos]][0].get_surrounding_node()
 
-    def strip(self) -> 'SubString':
+    def strip(self) -> 'DnmStr':
         str_start = 0
         str_end = 0
         for i in range(len(self.string)):
@@ -162,7 +188,7 @@ class SubString(object):
                 break
         return self[str_start:str_end]
 
-    def normalize_spaces(self) -> 'SubString':
+    def normalize_spaces(self) -> 'DnmStr':
         new_string = ''
         new_backrefs = []
         for i in range(len(self)):
@@ -173,7 +199,7 @@ class SubString(object):
                 if not (i >= 1 and self.string[i - 1].isspace()):
                     new_string += ' '
                     new_backrefs.append(self.backrefs[i])
-        return SubString(string=new_string, backrefs=new_backrefs, dnm=self.dnm)
+        return DnmStr(string=new_string, backrefs=new_backrefs, dnm=self.dnm)
 
 
 DEFAULT_DNM_CONFIG = DnmConfig(nodes_to_skip={'head', 'figure'},

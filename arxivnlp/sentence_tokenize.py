@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from lxml import etree
 
-from arxivnlp.data.dnm import SubString, get_node_classes
+from arxivnlp.data.dnm import DnmStr, get_node_classes
 
 
 def is_ref_node(node: etree.Element) -> bool:
@@ -24,7 +24,7 @@ def is_in_header(node: etree.Element) -> bool:
     return False
 
 
-def sentence_tokenize(substring: SubString) -> List[SubString]:
+def sentence_tokenize(substring: DnmStr) -> List[DnmStr]:
     sentences = []
     sent_start = 0
     in_header = False
@@ -49,7 +49,7 @@ def sentence_tokenize(substring: SubString) -> List[SubString]:
     return sentences
 
 
-def normal_end_of_sentence(substring: SubString, i: int) -> bool:
+def normal_end_of_sentence(substring: DnmStr, i: int) -> bool:
     if substring.string[i] not in {'.', '!', '?'}:
         return False
     isdot = substring.string[i] == '.'

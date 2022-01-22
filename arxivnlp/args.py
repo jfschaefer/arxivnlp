@@ -29,6 +29,7 @@ class ArgumentHandler(object):
         if self.handle_config_file:
             if args.config_file:
                 arxivnlp.config.Config.config_file = Path(args.config_file)
+                arxivnlp.config.Config.get().set_as_default()
 
 
 def parse_and_process(parser: argparse.ArgumentParser, handler: Optional[ArgumentHandler] = None) -> argparse.Namespace:

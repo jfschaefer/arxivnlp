@@ -22,8 +22,8 @@ class TestDnm(unittest.TestCase):
         dnm = Dnm(tree, dnm_config=DnmConfig(nodes_to_skip=set(), classes_to_skip=set(), nodes_to_replace={},
                                              classes_to_replace={}))
         self.assertEqual(dnm.string, 'abchgjnope')
-        dnm.insert_node(node=etree.XML('<d></d>'), pos=2)
-        dnm.insert_node(node=etree.XML('<e></e>'), pos=8)
+        dnm.add_node(node=etree.XML('<d></d>'), pos=2)
+        dnm.add_node(node=etree.XML('<e></e>'), pos=8)
         new_html = etree.tostring(tree.getroot())
         self.assertEqual(new_html, b'<a>ab<d/>c<b>hgj</b>no<e/>pe<c/></a>')
 
@@ -36,11 +36,11 @@ class TestDnm(unittest.TestCase):
         self.assertEqual(dnm.string, 'abc MathNode nope')
         self.assertEqual(dnm.backrefs[3][0].get_surrounding_node().tag, 'a')
         self.assertEqual(dnm.backrefs[12][0].get_surrounding_node().tag, 'a')
-        substring = dnm.get_full_substring()
+        substring = dnm.get_full_dnmstr()
         self.assertEqual(substring.string, 'abc MathNode nope')
         self.assertEqual(substring.get_node(3).tag, 'a')
         self.assertEqual(substring.get_node(12).tag, 'a')
 
-        dnm.insert_node(node=etree.XML('<d>Inserted</d>'), pos=6)
+        dnm.add_node(node=etree.XML('<d>Inserted</d>'), pos=6)
         new_html = etree.tostring(tree.getroot())
         self.assertEqual(new_html, b'<a>abc <d>Inserted</d><math>this is math string</math> nope<c/></a>')

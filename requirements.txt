@@ -1,3 +1,0 @@
-lxml~=4.7.1
-nltk~=3.6.7
-setuptools==60.5.0
