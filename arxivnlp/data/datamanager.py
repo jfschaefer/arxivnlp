@@ -15,7 +15,7 @@ class DataManager(object):
             self.config = config
         else:
             self.config = Config.get()
-        self.arxiv_categories = ArxivCategories(config)
+        self.arxiv_categories = ArxivCategories(self.config)
 
     arxiv_id_regex = re.compile(r'[^0-9]*(?P<yymm>[0-9]{4}).*')
 
