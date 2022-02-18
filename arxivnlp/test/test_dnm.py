@@ -1,6 +1,7 @@
 import io
 import os
 import unittest
+from typing import Any
 
 from lxml import etree
 
@@ -8,14 +9,6 @@ from arxivnlp.data.dnm import Dnm, DnmConfig, DEFAULT_DNM_CONFIG
 
 
 class TestDnm(unittest.TestCase):
-    def test_simple(self):
-        parser = etree.HTMLParser()
-        source = os.path.join(os.path.dirname(__file__), 'resources', '1608.07211.html')
-        tree = etree.parse(source, parser)
-        doc = Dnm(tree, dnm_config=DEFAULT_DNM_CONFIG)
-        with open('1608.05390.txt', 'w') as f:
-            f.write(doc.string)
-
     def test_insert(self):
         html = '<a>abc<b>hgj</b>nope<c></c></a>'
         tree = etree.parse(io.StringIO(html))
@@ -24,6 +17,7 @@ class TestDnm(unittest.TestCase):
         self.assertEqual(dnm.string, 'abchgjnope')
         dnm.add_node(node=etree.XML('<d></d>'), pos=2)
         dnm.add_node(node=etree.XML('<e></e>'), pos=8)
+        dnm.insert_added_nodes()
         new_html = etree.tostring(tree.getroot())
         self.assertEqual(new_html, b'<a>ab<d/>c<b>hgj</b>no<e/>pe<c/></a>')
 
@@ -42,5 +36,6 @@ class TestDnm(unittest.TestCase):
         self.assertEqual(substring.get_node(12).tag, 'a')
 
         dnm.add_node(node=etree.XML('<d>Inserted</d>'), pos=6)
+        dnm.insert_added_nodes()
         new_html = etree.tostring(tree.getroot())
         self.assertEqual(new_html, b'<a>abc <d>Inserted</d><math>this is math string</math> nope<c/></a>')

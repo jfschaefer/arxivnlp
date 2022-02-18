@@ -1,11 +1,9 @@
-import re
-from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, IO
 from lxml import etree
 
 from .arxivcategories import ArxivCategories
+from .arxmlivdocs import ArXMLivDocs
 from .dnm import DnmConfig, Dnm, DEFAULT_DNM_CONFIG
-from .exceptions import BadArxivId, MissingDataException
 from ..config import Config
 
 
@@ -16,28 +14,13 @@ class DataManager(object):
         else:
             self.config = Config.get()
         self.arxiv_categories = ArxivCategories(self.config)
+        self.arxmliv_docs = ArXMLivDocs(self.config)
 
-    arxiv_id_regex = re.compile(r'[^0-9]*(?P<yymm>[0-9]{4}).*')
-
-    def locate_doc(self, arxiv_id: str) -> Path:
-        match = DataManager.arxiv_id_regex.match(arxiv_id)
-        if not match:
-            raise BadArxivId(f'Failed to infer yymm from arxiv id "{arxiv_id}"')
-        yymm = match.group('yymm')
-        directory = self.config.arxmliv_dir / yymm
-        if not directory.is_dir():
-            raise MissingDataException(f'No such directory: "{directory}"')
-        if arxiv_id.endswith('.html'):
-            filename = directory / arxiv_id
-        else:
-            filename = directory / f'{arxiv_id}.html'
-        return filename
-
-    html_parser = etree.HTMLParser()
+    html_parser: Any = etree.HTMLParser()    # Setting type to Any suppress annoying warnings
 
     def load_dnm(self, arxiv_id: str, dnm_config: Optional[DnmConfig] = None) -> Dnm:
-        file = self.locate_doc(arxiv_id)
         if dnm_config is None:
             dnm_config = DEFAULT_DNM_CONFIG
-        tree = etree.parse(str(file), self.html_parser)
+        with self.arxmliv_docs.open(arxiv_id) as fp:
+            tree = etree.parse(fp, self.html_parser)
         return Dnm(tree, dnm_config)

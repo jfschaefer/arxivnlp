@@ -17,7 +17,7 @@ class MissingConfigException(Exception):
 
 @dataclasses.dataclass
 class Config(object):
-    default_config: Optional['Config'] = None
+    _default_config: Optional['Config'] = None
     config_file: Optional[Path] = None
     arxmliv_dir: Optional[Path] = None
     other_data_dir: Optional[Path] = None
@@ -40,8 +40,8 @@ class Config(object):
 
     @classmethod
     def get(cls) -> 'Config':
-        if cls.default_config is not None:
-            return cls.default_config
+        if cls._default_config is not None:
+            return cls._default_config
         logger = logging.getLogger(__name__)
         if cls.config_file is not None:
             if not cls.config_file:
@@ -60,7 +60,7 @@ class Config(object):
         return Config()
 
     def set_as_default(self):
-        Config.default_config = self
+        Config._default_config = self
 
 
 def configure(rootdir: Path, configfile=Path('~/.arxivnlp.conf')):
@@ -90,6 +90,5 @@ if __name__ == '__main__':
                                  'warning: might not be found if changed)')
         args = parser.parse_args()
         configure(Path(args.rootdir), Path(args.file))
-
 
     main()

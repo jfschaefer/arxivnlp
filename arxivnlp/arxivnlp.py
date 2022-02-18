@@ -1,3 +1,0 @@
-
-class ArxivNlp(object):
-    pass
