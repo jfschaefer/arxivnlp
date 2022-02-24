@@ -22,11 +22,12 @@ class ArgumentHandler(object):
                                          dest='log_level')
         if self.handle_config_file:
             argument_parser.add_argument('--config', nargs='?', dest='config_file')
+            argument_parser.add_argument('--processes', nargs='?', type=int, dest='processes')
 
     def handle_arguments(self, args: argparse.Namespace):
         if self.handle_logging:
             logging_config: Dict[str, Any] = {
-                'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+                'format': '%(process)6d %(asctime)s [%(levelname)s] %(name)s: %(message)s',
                 'level': self.log_levels[args.log_level]
             }
             if args.log_file not in {'stdout', 'stderr'}:
@@ -39,7 +40,11 @@ class ArgumentHandler(object):
         if self.handle_config_file:
             if args.config_file:
                 arxivnlp.config.Config.config_file = Path(args.config_file)
-                arxivnlp.config.Config.get().set_as_default()
+            default_config = arxivnlp.config.Config.get()
+            if args.processes:
+                default_config.number_of_processes = args.processes
+            default_config.set_as_default()
+
 
 
 def parse_and_process(parser: argparse.ArgumentParser, handler: Optional[ArgumentHandler] = None,

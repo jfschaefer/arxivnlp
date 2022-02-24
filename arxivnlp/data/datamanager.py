@@ -3,6 +3,7 @@ from lxml import etree
 
 from .arxivcategories import ArxivCategories
 from .arxmlivdocs import ArXMLivDocs
+from .cached import ZipFileCache
 from .dnm import DnmConfig, Dnm, DEFAULT_DNM_CONFIG
 from ..config import Config
 
@@ -13,8 +14,9 @@ class DataManager(object):
             self.config = config
         else:
             self.config = Config.get()
+        self.zipfile_cache = ZipFileCache(self.config)
         self.arxiv_categories = ArxivCategories(self.config)
-        self.arxmliv_docs = ArXMLivDocs(self.config)
+        self.arxmliv_docs = ArXMLivDocs(self.config, self.zipfile_cache)
 
     html_parser: Any = etree.HTMLParser()    # Setting type to Any suppress annoying warnings
 
@@ -24,3 +26,9 @@ class DataManager(object):
         with self.arxmliv_docs.open(arxiv_id) as fp:
             tree = etree.parse(fp, self.html_parser)
         return Dnm(tree, dnm_config)
+
+    def close(self):
+        self.zipfile_cache.close()
+
+    def __del__(self):
+        self.close()

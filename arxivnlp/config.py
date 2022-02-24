@@ -8,7 +8,11 @@ from typing import Optional
 
 
 def str_to_path_if_not_none(path: Optional[str]) -> Optional[Path]:
-    return Path(path) if path else None
+    return Path(path) if path is not None else None
+
+
+def to_int(string: Optional[str]) -> Optional[int]:
+    return int(string) if string is not None else None
 
 
 class MissingConfigException(Exception):
@@ -18,11 +22,17 @@ class MissingConfigException(Exception):
 @dataclasses.dataclass
 class Config(object):
     _default_config: Optional['Config'] = None
+
+    # DATA
     config_file: Optional[Path] = None
     arxmliv_dir: Optional[Path] = None
     other_data_dir: Optional[Path] = None
     cache_dir: Optional[Path] = None
     results_dir: Optional[Path] = None
+
+    # PERFORMANCE
+    max_open_zip_files: Optional[int] = None
+    number_of_processes: Optional[int] = None
 
     @classmethod
     def from_file(cls, file_path: Path) -> 'Config':
@@ -36,6 +46,9 @@ class Config(object):
             config.other_data_dir = to_path(parser['DATA'].get('OtherDataDir'))
             config.cache_dir = to_path(parser['DATA'].get('CacheDir'))
             config.results_dir = to_path(parser['DATA'].get('ResultsDir'))
+        if 'PERFORMANCE' in parser:
+            config.max_open_zip_files = to_int(parser['PERFORMANCE'].get('ZipFileCacheSize'))
+            config.number_of_processes = to_int(parser['PERFORMANCE'].get('NumberOfProcesses'))
         return config
 
     @classmethod
@@ -90,5 +103,6 @@ if __name__ == '__main__':
                                  'warning: might not be found if changed)')
         args = parser.parse_args()
         configure(Path(args.rootdir), Path(args.file))
+
 
     main()

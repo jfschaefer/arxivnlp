@@ -1,21 +1,27 @@
+import io
+import itertools
+import re
 import zipfile
 from contextlib import contextmanager
 from pathlib import Path
-import re
-from typing import IO, List
+from typing import IO, List, Set, Optional
 
-from ..config import Config
+from .cached import ZipFileCache, CachedData
 from .exceptions import BadArxivId, MissingDataException
+from ..config import Config
 
 
 class ArXMLivDocs(object):
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, zipfile_cache: Optional[ZipFileCache] = None):
         self.config = config
+        self.zipfile_cache = zipfile_cache if zipfile_cache is not None else ZipFileCache(config)
+        self.list_of_arxiv_ids: CachedData[List[str]] =\
+            CachedData(self.config, 'arxiv-ids', data_descr='list of arxiv ids')
 
     arxiv_id_regex = re.compile(r'[^0-9]*(?P<yymm>[0-9]{4}).*')
 
     @contextmanager
-    def open(self, arxiv_id: str) -> IO:
+    def open(self, arxiv_id: str, read_as_text: bool = True) -> IO:
         if arxiv_id.endswith('.html'):
             arxiv_id = arxiv_id[:-5]
         match = ArXMLivDocs.arxiv_id_regex.match(arxiv_id)
@@ -35,7 +41,7 @@ class ArXMLivDocs(object):
         for path in [b/filename, b/'data'/filename, b/yymm/filename, b/'data'/yymm/filename]:
             attempts.append(path)
             if path.is_file():
-                file = open(path)
+                file = open(path, 'r' if read_as_text else 'rb')
                 try:
                     found = True
                     yield file
@@ -46,22 +52,45 @@ class ArXMLivDocs(object):
         for path in [b/f'{yymm}.zip', b/'data'/f'{yymm}.zip']:
             attempts.append(path)
             if path.is_file():
-                file_zip = zipfile.ZipFile(path)
+                file_zip = self.zipfile_cache[path] if self.zipfile_cache is not None else zipfile.ZipFile(str(path))
                 name = Path(yymm)/filename
                 try:
-                    actual_file = file_zip.open(str(name))
+                    actual_file = file_zip.open(str(name), 'r')
                     try:
                         found = True
-                        yield actual_file
+                        yield io.TextIOWrapper(actual_file, encoding='utf-8') if read_as_text else actual_file
                     finally:
                         actual_file.close()
                 except KeyError as e:
                     missing = MissingDataException(f'Failed to find {name} in {path}: {e}')
                     missing.__suppress_context__ = True
                     raise missing
-                finally:
-                    file_zip.close()
 
         if not found:
             raise MissingDataException(f'Failed to locate {arxiv_id} after looking in the following places:\n' +
                                        '\n'.join(f' * {a}' for a in attempts))
+
+    def arxiv_ids(self) -> List[str]:
+        if self.list_of_arxiv_ids.ensured():
+            return self.list_of_arxiv_ids.data
+        self.list_of_arxiv_ids.data = []
+        yymm_regex = re.compile(r'^[0-9][0-9][0-9][0-9](\.zip)?$')
+        processed_yymm: Set[str] = set()
+        for path in itertools.chain(self.config.arxmliv_dir.iterdir(), (self.config.arxmliv_dir/'data').iterdir()):
+            if not yymm_regex.match(path.name):
+                continue
+            yymm = path.name[:4]
+            if yymm in processed_yymm:
+                continue
+            processed_yymm.add(yymm)
+            if path.name.endswith('.zip'):
+                file_zip = self.zipfile_cache[path] if self.zipfile_cache is not None else zipfile.ZipFile(str(path))
+                for filename in file_zip.namelist():
+                    if filename.endswith('.html'):
+                        self.list_of_arxiv_ids.data.append(filename.split('/')[-1][:-5])
+            elif path.is_dir():
+                for filename in path.iterdir():
+                    if filename.name.endswith('.html'):
+                        self.list_of_arxiv_ids.data.append(filename.name[:-5])
+        self.list_of_arxiv_ids.write_to_cache()
+        return self.list_of_arxiv_ids.data
