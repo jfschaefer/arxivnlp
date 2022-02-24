@@ -1,0 +1,7 @@
+SELECT DISTINCT ?quantity ?symbol_latex ?symbol_string
+WHERE 
+{
+  ?quantity wdt:P279* wd:Q107715.
+  OPTIONAL { ?quantity wdt:P416 ?symbol_string. }
+  OPTIONAL { ?quantity wdt:P7973 ?symbol_latex. }
+}

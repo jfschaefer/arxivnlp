@@ -1,0 +1,7 @@
+SELECT DISTINCT ?quantity ?quantityLabel ?dimension
+WHERE 
+{
+  ?quantity wdt:P279* wd:Q107715.
+  OPTIONAL {?quantity wdt:P4020 ?dimension. }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}

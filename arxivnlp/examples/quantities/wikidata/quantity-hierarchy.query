@@ -1,0 +1,6 @@
+SELECT DISTINCT ?q1 ?q2
+WHERE 
+{
+  ?q2 wdt:P279* wd:Q107715.
+  ?q1 wdt:P279 q2.
+}
