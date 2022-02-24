@@ -72,3 +72,8 @@ def format_seconds(seconds: float) -> str:
         return f'{seconds / 3600:.1f} h'
     else:
         return f'{int(seconds / 3600)} h'
+    
+    
+def superscript_int(integer: int) -> str:
+    return ''.join({'-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+                    '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'}[c] for c in str(integer))

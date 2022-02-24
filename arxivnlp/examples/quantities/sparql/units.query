@@ -1,9 +1,10 @@
-SELECT ?unit ?unitLabel ?quantity ?SIconversion ?notation
+SELECT ?unit ?unitLabel ?quantity ?SIconversion ?standardConversion ?notation
 WHERE 
 {
   ?unit wdt:P31 ?unitofX. ?unitofX wdt:P279* wd:Q47574.
   OPTIONAL {?unit wdt:P111 ?quantity.}
   OPTIONAL {?unit wdt:P2370 ?SIconversion.}
+  OPTIONAL {?unit wdt:P2442 ?standardConversion.}
   OPTIONAL {?unit wdt:P5061 ?notation. FILTER langMatches( lang(?notation), "en") }.
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }
