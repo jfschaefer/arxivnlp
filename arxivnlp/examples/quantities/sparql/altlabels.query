@@ -1,6 +1,0 @@
-SELECT DISTINCT ?thing ?altLabel
-WHERE 
-{
-  { ?thing wdt:P31 ?unitofX. ?unitofX wdt:P279* wd:Q47574 } UNION { ?thing wdt:P279* wd:Q107715 }.
-  ?thing skos:altLabel ?altLabel . FILTER (lang(?altLabel) = "en")
-}

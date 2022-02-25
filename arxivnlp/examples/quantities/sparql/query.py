@@ -10,10 +10,10 @@ def single_query(content: str) -> str:
 
 
 
-# if __name__ == '__main__':
-#     import sys
-#     for file in sys.argv[1:]:
-#         print(file)
-#         with open(file) as fp1:
-#             with open(file[:-6]+'.csv', 'w') as fp2:
-#                 fp2.write(query(fp1.read()))
+if __name__ == '__main__':
+    import sys
+    for file in sys.argv[1:]:
+        print(file)
+        with open(file) as fp1:
+            with open(file[:-6]+'.csv', 'w') as fp2:
+                fp2.write(single_query(fp1.read()))

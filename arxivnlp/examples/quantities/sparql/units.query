@@ -1,10 +1,21 @@
-SELECT ?unit ?unitLabel ?quantity ?SIconversion ?standardConversion ?notation
+SELECT
+    ?unit
+    ?unitLabel
+    (GROUP_CONCAT(DISTINCT ?quantity; separator = "❙") AS ?quantities)
+    (GROUP_CONCAT(DISTINCT ?SIamount; separator = "❙") AS ?SIamounts)
+    ?SIunit
+    (GROUP_CONCAT(DISTINCT ?notation; separator="❙") AS ?notations)
+    (GROUP_CONCAT(DISTINCT ?altLabel; separator="❙") AS ?altLabels)
 WHERE 
 {
-  ?unit wdt:P31 ?unitofX. ?unitofX wdt:P279* wd:Q47574.
-  OPTIONAL {?unit wdt:P111 ?quantity.}
-  OPTIONAL {?unit wdt:P2370 ?SIconversion.}
-  OPTIONAL {?unit wdt:P2442 ?standardConversion.}
+  ?unit wdt:P31 / wdt:P279* wd:Q47574.
+  ?unit wdt:P111 ?quantity.
+  OPTIONAL {?unit p:P2370 / psv:P2370 [
+    wikibase:quantityAmount ?SIamount ;
+    wikibase:quantityUnit ?SIunit ;
+  ].}
   OPTIONAL {?unit wdt:P5061 ?notation. FILTER langMatches( lang(?notation), "en") }.
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+  OPTIONAL {?unit skos:altLabel ?altLabel . FILTER (lang(?altLabel) = "en")}
 }
+GROUP BY ?unit ?unitLabel ?quantities ?SIamounts ?SIunit ?notations ?altLabels

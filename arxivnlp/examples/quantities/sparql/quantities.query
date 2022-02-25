@@ -1,7 +1,19 @@
-SELECT DISTINCT ?quantity ?quantityLabel ?dimension
+SELECT DISTINCT
+  ?quantity
+  ?quantityLabel
+  ?dimension
+  (GROUP_CONCAT(DISTINCT ?super_quantity; separator = "❙") AS ?super_quantities)
+  (GROUP_CONCAT(DISTINCT ?symbol; separator = "❙") AS ?symbols)
+  (GROUP_CONCAT(DISTINCT ?symbol_ltx; separator = "❙") AS ?symbols_ltx)
+  (GROUP_CONCAT(DISTINCT ?altLabel; separator="❙") AS ?altLabels)
 WHERE 
 {
   ?quantity wdt:P279* wd:Q107715.
+  OPTIONAL {?quantity wdt:P279 ?super_quantity. }
   OPTIONAL {?quantity wdt:P4020 ?dimension. }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+  OPTIONAL {?quantity wdt:P416 ?symbol. }
+  OPTIONAL {?quantity wdt:P7973 ?symbol_ltx. }
+  OPTIONAL {?quantity skos:altLabel ?altLabel . FILTER (lang(?altLabel) = "en")}
 }
+GROUP BY ?quantity ?quantityLabel ?dimension ?super_quantities ?symbols ?symbols_ltx ?altLabels

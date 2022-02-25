@@ -4,6 +4,7 @@ import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Dict, Set
+
 import requests
 from lxml import etree
 
@@ -34,13 +35,20 @@ class Dimension(object):
         self.dims = dims
 
     def __str__(self) -> str:
+        """ Unique string representation """
         s: str = ''
         for d in self.dim_order:
-            if d in self.dims:
+            if d in self.dims and self.dims[d]:
                 s += f'{d}{superscript_int(self.dims[d])}'
         if not s:
             s = '1'
         return s
+
+    def __eq__(self, other) -> bool:
+        return str(self) == str(other)
+
+    def __neq__(self, other) -> bool:
+        return str(self) != str(other)
 
     @classmethod
     def from_wikidata_mathml(cls, mathml: str) -> 'Dimension':
@@ -74,13 +82,39 @@ class Dimension(object):
         return Dimension(dims)
 
 
+# def notation_norm(notation: str) -> Set[str]:
+#     """ given a string notation, it generates different, standardized variants """
+#     variants: Set[str] = set()
+#     # replace superscript and subscript
+#     replacements = {
+#         # superscript numbers
+#         '⁻': '^-', '⁰': '^0', '¹': '^1', '²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
+#         # subscript numbers
+#         '₋': '_-', '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3', '₄': '_4', '₅': '_5', '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9'
+#                     }
+#     new_notation = ''.join(replacements[c] if c in replacements else c for c in notation)
+#     # TODO: s^-1 vs s^-^1 vs s^(-1)
+#     variants.add(new_notation)
+#
+#     for variant in list(variants):
+#         variants.add(variant.replace('º', '^∘'))
+#     for variant in list(variants):
+#         if '_☉' not in variant:
+#             variants.add(variant.replace('☉', '_☉'))
+#     for variant in list(variants):
+#         variants.add(variant.replace('☉', '⊙'))
+#
+#     # TODO: More variants e.g. "m/s" vs "m s^-^1" vs "s^-1 m" (this gets tricky for more complex ones)
+#     return variants
+
+
 class Quantity(object):
     def __init__(self, identifier: str, label: str):
         self.identifier = identifier
         self.label = label
         self.parents: List['Quantity'] = []
         self.dimension: Optional[Dimension] = None
-        self.symbols: List[str] = []
+        self.symbols: Set[str] = set()
 
     @property
     def uri(self) -> str:
@@ -93,7 +127,8 @@ class Unit(object):
         self.label = label
         self.quantities: List[Quantity] = []
         self.dimension: Optional[Dimension] = None
-        self.notations: List[str] = []
+        self.notations: Set[str] = set()
+        self.si_conversion: Optional[float] = None
 
     @property
     def uri(self) -> str:
@@ -101,8 +136,9 @@ class Unit(object):
 
 
 class QuantityWikiData(object):
-    def __init__(self):
-        pass
+    def __init__(self, quantities: List[Quantity], units: List[Unit]):
+        self.quantities = quantities
+        self.units = units
 
 
 class QuantityWikiDataLoader(object):
@@ -114,12 +150,18 @@ class QuantityWikiDataLoader(object):
         if self.data.ensured():
             return self.data.data
 
+        # STEP 1: COMPILE QUANTITY DATA
         quantities: Dict[str, Quantity] = {}
         dim_collection: Dict[str, Dimension] = {}
-        with self.load_csv('quantities', ['quantity', 'quantityLabel', 'dimension']) as quantities_reader:
-            for quantity, quantityLabel, dimension in quantities_reader:
+        quant_parents: Dict[str, List[str]] = {}
+        with self.load_csv('quantities', ['quantity', 'quantityLabel', 'dimension', 'super_quantities', 'symbols',
+                                          'symbols_ltx', 'altLabels']) as quantities_reader:
+            for quantity, quantityLabel, dimension, super_quantities, symbols, symbols_ltx, altLabels \
+                    in quantities_reader:
                 identifier = quantity.split('/')[-1]
                 new_quant = Quantity(identifier, quantityLabel)
+                assert identifier not in quantities
+                quantities[identifier] = new_quant
                 if dimension.strip():
                     real_dim = Dimension.from_wikidata_mathml(dimension)
                     # idea: only one object per dimension to make pickle dump smaller
@@ -128,23 +170,52 @@ class QuantityWikiDataLoader(object):
                     else:
                         dim_collection[str(real_dim)] = real_dim
                     new_quant.dimension = real_dim
-                quantities[quantity] = new_quant
-        # print(quantities.keys())
+                if super_quantities.strip():
+                    quant_parents[identifier] = [s.strip().split('/')[-1] for s in super_quantities.split('❙')]
 
+        # STEP 2: LINK QUANTITY DATA
+        for quant in quant_parents:
+            quantity = quantities[quant]
+            for q2 in quant_parents[quant]:
+                if q2 in quantities:
+                    quantity.parents.append(quantities[q2])
+        # copy dimensions (implementation could be optimized, but it's fast enough)
+        # Note that diamonds and maybe even cycles are possible
+        something_changed: bool = True
+        while something_changed:
+            something_changed = False
+            for q in quantities.values():
+                for p in q.parents:
+                    if p.dimension is not None and q.dimension is None:
+                        q.dimension = p.dimension
+                        something_changed = True
+
+        # STEP 3: COMPILE UNIT DATA
         units: Dict[str, Unit] = {}
-        with self.load_csv('units', ['unit', 'unitLabel', 'quantity', 'SIconversion', 'standardConversion', 'notation']) as units_reader:
-            for unit_uri, unitLabel, quantity, si_conversion, standard_conversion, notation in units_reader:
+        with self.load_csv('units', ['unit', 'unitLabel', 'quantities', 'SIamounts', 'SIunit',
+                                     'notations', 'altLabels']) as units_reader:
+            for unit_uri, unitLabel, unit_quantities, si_amounts, si_unit, notations, altLables in units_reader:
                 identifier = unit_uri.split('/')[-1]
-                if identifier not in units:
-                    units[identifier] = Unit(identifier, unitLabel)
+                assert identifier not in units
+                units[identifier] = Unit(identifier, unitLabel)
                 unit = units[identifier]
-                if quantity.strip():
-                    if quantity in quantities:
-                        quant = quantities[quantity]
-                        if quant not in unit.quantities:
+                if unit_quantities.strip():
+                    for q in unit_quantities.split('❙'):
+                        qq = q.strip().split('/')[-1]
+                        if qq in quantities:
+                            quant = quantities[qq]
+                            assert quant not in unit.quantities
                             unit.quantities.append(quant)
+                            if quant.dimension is not None:
+                                # if unit.dimension is not None and quant.dimension != unit.dimension:
+                                #     print(unit.identifier, unit.label, unit.dimension, quant.identifier, quant.label, quant.dimension)
+                                unit.dimension = quant.dimension
+                if si_amounts.strip():
+                    # for now, pick only the first one
+                    unit.si_conversion = float(si_amounts.split('❙')[0])
 
-        # print(f'Found {len(quantities)} quantities')
+        self.data.data = QuantityWikiData(list(quantities.values()), list(units.values()))
+        # TODO: write data to cache (once pre-processing has converged)
 
     @contextmanager
     def load_csv(self, queryname: str, assert_columns: Optional[List[str]] = None):
@@ -180,5 +251,6 @@ class QuantityWikiDataLoader(object):
 
 if __name__ == '__main__':
     import arxivnlp.args
+
     arxivnlp.args.auto()
     data = QuantityWikiDataLoader(Config.get()).get()
