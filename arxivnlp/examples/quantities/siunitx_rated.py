@@ -26,7 +26,7 @@ def get_description(arxivid: str) -> Tuple[str, str]:
         dom = etree.parse(fp, html_parser)
         xrefs: Set[str] = set()
         mis: Set[str] = set()
-        for node in dom.xpath('//mi[@class="ltx_unit"]'):
+        for node in dom.xpath('//*[@class="ltx_unit"]'):
             if node.xpath('./@xref'):    # due to a bug in older latexml versions, xref is sometimes missing
                 xrefs.add(node.xpath('./@xref')[0])
             if node.xpath('./text()'):   # apparently even this doesn't always exist (e.g. \watt\per\centimeter\square)
