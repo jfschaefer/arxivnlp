@@ -140,6 +140,10 @@ class QuantityWikiData(object):
         self.quantities = quantities
         self.units = units
 
+        self.label_to_unit: Dict[str, List[Unit]] = {}
+        for unit in self.units:
+            self.label_to_unit.setdefault(unit.label, []).append(unit)
+
 
 class QuantityWikiDataLoader(object):
     def __init__(self, config: Config):

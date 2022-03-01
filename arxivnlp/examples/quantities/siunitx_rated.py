@@ -1,6 +1,6 @@
 import multiprocessing
 from pathlib import Path
-from typing import Dict, Any, Tuple, List, Set
+from typing import Any, Tuple, List, Set
 
 from lxml import etree
 
@@ -32,7 +32,8 @@ def get_description(arxivid: str) -> Tuple[str, str]:
             if node.xpath('./text()'):   # apparently even this doesn't always exist (e.g. \watt\per\centimeter\square)
                 mis.add(node.xpath('./text()')[0])
         csyms: Set[str] = set(dom.xpath('//csymbol/@id'))
-        return arxivid, f'{len(xrefs)},{len(mis)},{len(xrefs.intersection(csyms))}'
+        mrows = len(dom.xpath('//mrow[@class="ltx_unit"]'))
+        return arxivid, f'{len(xrefs)},{len(mis)},{len(xrefs.intersection(csyms))},{mrows}'
 
 
 results: List[Tuple[str, str]] = []
