@@ -58,20 +58,20 @@ class ArXMLivDocs(object):
                 name = Path(yymm)/filename
                 try:
                     actual_file = file_zip.open(str(name), 'r')
-                    try:
-                        found = True
-                        result: IO
-                        if read_as_text:
-                            result = io.TextIOWrapper(actual_file, encoding='utf-8')
-                        else:
-                            result = actual_file
-                        yield result
-                    finally:
-                        actual_file.close()
                 except KeyError as e:
                     missing = MissingDataException(f'Failed to find {name} in {path}: {e}')
                     missing.__suppress_context__ = True
                     raise missing
+                try:
+                    found = True
+                    result: IO
+                    if read_as_text:
+                        result = io.TextIOWrapper(actual_file, encoding='utf-8')
+                    else:
+                        result = actual_file
+                    yield result
+                finally:
+                    actual_file.close()
 
         if not found:
             raise MissingDataException(f'Failed to locate {arxiv_id} after looking in the following places:\n' +

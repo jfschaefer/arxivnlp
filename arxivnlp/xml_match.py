@@ -139,7 +139,7 @@ class MatcherSeqConcat(SeqMatcher):
         if matchers is None:
             matchers = self.seq_matchers
         if not matchers:
-            yield [], nodes
+            return iter(([], nodes))
         for match, remainder in matchers[0].match(nodes):
             if len(matchers) == 1:
                 yield match, remainder

@@ -3,6 +3,7 @@ from typing import List, Any
 
 from lxml import etree
 
+from arxivnlp import xml_match as xm
 import arxivnlp.args
 from arxivnlp.config import Config
 from arxivnlp.data.datamanager import DataManager
@@ -24,26 +25,64 @@ def get_relevant_documents(config: Config) -> List[str]:
     print('TOTAL SCORE', sum(d.values()))
     return sorted((a for a in d), key=lambda a: -d[a])
 
+CSS = '''
+.arxivnlpmessage {
+  display: none;
+  position: absolute;
+  background-color: #ddddaa;
+  border-style: solid;
+  border-color: #330000;
+  padding: 10px;
+  font-size: 24pt;
+}
+
+.arxivnlpmessagemarker:hover + .arxivnlpmessage {
+  display: block;
+}
+
+.arxivnlpmessagemarker {
+  font-weight: bold;
+  font-size: 150%;
+  color: red;
+}
+'''
+
+
+def get_matcher() -> xm.NodeMatcher:
+    scalar = xm.tag('mn') ** 'scalar'
+    space = xm.tag('mtext').with_text(r'\s*')
+    unit = (xm.tag('mi') | xm.tag('mrow')).with_class('ltx_unit') ** 'unit'
+    quantity = xm.tag('mrow') / xm.seq(scalar, xm.maybe(space), unit)
+    base = xm.tag('math') / xm.tag('semantics')
+    return base / quantity
+
 
 def process(arxivid: str, data_manager: DataManager, data: QuantityWikiData):
-    html_parser: Any = etree.HTMLParser()  # Setting type to Any suppress annoying warnings
+    html_parser: Any = etree.HTMLParser()  # Setting type to Any suppresses annoying warnings
+
+    matcher = get_matcher()
+
     with data_manager.arxmliv_docs.open(arxivid) as fp:
-        # TODO: Make this more interesting
         dom = etree.parse(fp, html_parser)
-        for node in dom.xpath('//*[@class="ltx_unit"]'):
-            if not node.xpath('./@xref'):
-                print('skipping')
+        for node in dom.xpath('//math'):
+            matches = list(matcher.match(node))
+            if not matches:
                 continue
-            xref = node.xpath('./@xref')[0]
-            value = node.xpath(f'./ancestor::math//csymbol[@id="{xref}"]/text()')
+            assert len(matches) == 1
+            tree = matches[0].to_label_tree()
+            scalar = tree['scalar'].node.text
+            xrefs = tree['unit'].node.xpath('./@xref')
+            if not xrefs:
+                continue
+            xref = xrefs[0]
+            # value = node.xpath(f'./ancestor::math//csymbol[@id="{xref}"]/text()')
+            value = node.xpath(f'.//csymbol[@id="{xref}"]/text()')
             if not value:
                 print('skipping')
                 continue
             value = value[0]
-            parent = node.getparent()
-            while parent.tag != 'math':
-                parent = parent.getparent()
-            parent.addnext(etree.XML(f'<span style="color:red;font-weight:bold">{value}</span>'))
+            node.addnext(etree.XML(f'<span><span class="arxivnlpmessagemarker">*</span><span class="arxivnlpmessage">{scalar} {value}</span></span>'))
+        dom.xpath('.//head')[0].append(etree.XML(f'<style>{CSS}</style>'))  # TODO: Escape CSS
         with open(f'/tmp/units-{arxivid}.html', 'wb') as fp:
             fp.write(etree.tostring(dom))
 
