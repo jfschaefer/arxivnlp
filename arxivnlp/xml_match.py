@@ -1,6 +1,9 @@
-from typing import Iterator, List, Optional, Union, Tuple
+from typing import Iterator, List, Optional, Union, Tuple, Set
 
 from lxml.etree import _Element
+import re
+
+from arxivnlp.util import get_node_classes
 
 
 class LabelTree(object):
@@ -106,6 +109,12 @@ class NodeMatcher(Matcher):
             return MatcherNodeOr([self] + other.node_matchers)
         return MatcherNodeOr([self, other])
 
+    def with_class(self, *classes: str) -> 'NodeMatcher':
+        return MatcherNodeWithClass(self, set(classes))
+
+    def with_text(self, regex: str) -> 'NodeMatcher':
+        return MatcherNodeWithText(self, re.compile(regex))
+
 
 class MatcherSeqAny(SeqMatcher):
     """ Matches a whole sequence if a single element matches the specified node matcher """
@@ -170,6 +179,28 @@ class MatcherNodeAsSeq(SeqMatcher):
             yield [match], nodes[1:]
 
 
+class MatcherNodeWithClass(NodeMatcher):
+    def __init__(self, node_matcher: NodeMatcher, acceptable_classes: Set[str]):
+        self.node_matcher = node_matcher
+        self.acceptable_classes = acceptable_classes
+
+    def match(self, node: _Element) -> Iterator[Match]:
+        if any(c in self.acceptable_classes for c in get_node_classes(node)):
+            return self.node_matcher.match(node)
+        return iter(())
+
+
+class MatcherNodeWithText(NodeMatcher):
+    def __init__(self, node_matcher: NodeMatcher, regex: re.Pattern):
+        self.node_matcher = node_matcher
+        self.regex = regex
+
+    def match(self, node: _Element) -> Iterator[Match]:
+        if node.text is not None and self.regex.match(node.text):
+            return self.node_matcher.match(node)
+        return iter(())
+
+
 class MatcherTag(NodeMatcher):
     def __init__(self, tagname: str):
         self.tagname = tagname
@@ -177,6 +208,11 @@ class MatcherTag(NodeMatcher):
     def match(self, node: _Element) -> Iterator[Match]:
         if node.tag == self.tagname:
             yield Match(node)
+
+
+class MatcherAnyNode(NodeMatcher):
+    def match(self, node: _Element) -> Iterator[Match]:
+        return iter([Match(node)])
 
 
 class MatcherNodeOr(NodeMatcher):
@@ -226,9 +262,17 @@ class MatcherLabelled(NodeMatcher):
 
 
 # Short hands
+any_tag: NodeMatcher = MatcherAnyNode()
+empty_seq: SeqMatcher = MatcherSeqConcat([])
+
+
 def tag(name: str) -> NodeMatcher:
     return MatcherTag(name)
 
 
 def seq(*matchers: Union[NodeMatcher, SeqMatcher]) -> SeqMatcher:
     return sum(matchers, MatcherSeqConcat([]))  # type: ignore
+
+
+def maybe(matcher: Union[NodeMatcher, SeqMatcher]) -> SeqMatcher:
+    return matcher.as_seq_matcher() | empty_seq

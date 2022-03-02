@@ -2,7 +2,8 @@ from typing import List, Optional
 
 from lxml.etree import _Element
 
-from arxivnlp.data.dnm import DnmStr, get_node_classes
+from arxivnlp.data.dnm import DnmStr
+from arxivnlp.util import get_node_classes
 
 
 def is_ref_node(node: _Element) -> bool:

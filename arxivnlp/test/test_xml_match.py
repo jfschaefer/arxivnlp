@@ -27,8 +27,9 @@ class TestDnm(unittest.TestCase):
         </math>''')
 
     def test_simple(self):
-        matcher = xm.tag('math') / xm.tag('semantics') / xm.tag('mrow') / \
-                  xm.seq(xm.tag('mi') ** 'lhs', xm.tag('mo'), xm.tag('mi') ** 'rhs')
+        base_matcher = xm.tag('math') / xm.tag('semantics')
+
+        matcher = base_matcher / xm.tag('mrow') / xm.seq(xm.tag('mi') ** 'lhs', xm.tag('mo'), xm.tag('mi') ** 'rhs')
         matches = list(matcher.match(self.formula_1))
         self.assertEqual(len(matches), 1)
         tree = matches[0].to_label_tree()
@@ -36,6 +37,11 @@ class TestDnm(unittest.TestCase):
         self.assertEqual(tree['rhs'].node.text, 'X')
         self.assertEqual(len(tree.children), 2)
 
-        matcher = xm.tag('math')/xm.tag('semantics')/xm.tag('annotation-xml')/xm.tag('apply')/xm.tag('ci')**'identifier'
+        matcher = base_matcher / xm.tag('annotation-xml') / xm.tag('apply') / xm.tag('ci') ** 'identifier'
         matches = list(matcher.match(self.formula_1))
         self.assertEqual(len(matches), 2)
+
+        matcher = base_matcher / (xm.tag('annotation-xml') | xm.tag('mrow')) / \
+                  (xm.tag('apply') / xm.tag('ci') ** 'identifier_ci' | xm.tag('mi') ** 'identifier_mi')
+        matches = list(matcher.match(self.formula_1))
+        self.assertEqual(len(matches), 4)

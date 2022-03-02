@@ -2,13 +2,7 @@ from typing import Set, List, Tuple, Dict, Optional
 
 from lxml.etree import _Element, _ElementTree
 
-
-def get_node_classes(node: _Element) -> List[str]:
-    classes_of_node = node.get('class')
-    if classes_of_node is None:
-        return []
-    else:
-        return classes_of_node.split()
+from arxivnlp.util import get_node_classes
 
 
 class DnmConfig(object):
