@@ -19,8 +19,8 @@ def get_relevant_documents(config: Config) -> List[str]:
             if not line.strip():
                 continue
             parts = line.strip().split(',')
-            # d[parts[0]] = float(parts[-2]) * float(parts[-3]) ** 0.5
-            d[parts[0]] = float(parts[-1])  # sort by count(//mrow[@class="ltx_unit"])
+            d[parts[0]] = float(parts[-2]) * float(parts[-3]) ** 0.5
+            # d[parts[0]] = float(parts[-1])  # sort by count(//mrow[@class="ltx_unit"])
     print('TOTAL SCORE', sum(d.values()))
     return sorted((a for a in d), key=lambda a: -d[a])
 
@@ -30,10 +30,16 @@ def process(arxivid: str, data_manager: DataManager, data: QuantityWikiData):
     with data_manager.arxmliv_docs.open(arxivid) as fp:
         # TODO: Make this more interesting
         dom = etree.parse(fp, html_parser)
-        for node in dom.xpath('//mrow[@class="ltx_unit"]'):
+        for node in dom.xpath('//*[@class="ltx_unit"]'):
+            if not node.xpath('./@xref'):
+                print('skipping')
+                continue
             xref = node.xpath('./@xref')[0]
-            print('inserting', xref, arxivid)
-            value = node.xpath(f'//csymbol[@id="{xref}"]/text()')[0]
+            value = node.xpath(f'./ancestor::math//csymbol[@id="{xref}"]/text()')
+            if not value:
+                print('skipping')
+                continue
+            value = value[0]
             parent = node.getparent()
             while parent.tag != 'math':
                 parent = parent.getparent()
@@ -49,6 +55,7 @@ def main():
     data_manager = DataManager(config)
     arxivids = get_relevant_documents(config)
     for i in range(5):
+        print(f'Processing {arxivids[i]}')
         process(arxivids[i], data_manager, data)
 
 
