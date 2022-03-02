@@ -52,7 +52,13 @@ class Match(object):
 
 
 class Matcher(object):
-    pass
+    def as_seq_matcher(self) -> 'SeqMatcher':
+        raise NotImplemented
+
+    def __add__(self, other: 'Matcher') -> 'SeqMatcher':
+        if isinstance(other, MatcherSeqConcat):
+            return MatcherSeqConcat([self.as_seq_matcher()] + other.seq_matchers)
+        return MatcherSeqConcat([self.as_seq_matcher(), other.as_seq_matcher()])
 
 
 class SeqMatcher(Matcher):
@@ -61,25 +67,56 @@ class SeqMatcher(Matcher):
             where `matches` is the found matches and `rest` are the remaining nodes that still have to be matched. """
         raise NotImplemented
 
+    def as_seq_matcher(self) -> 'SeqMatcher':
+        return self
+
+    def __or__(self, other: Matcher) -> 'SeqMatcher':
+        if isinstance(other, MatcherSeqOr):
+            return MatcherSeqOr([self] + other.seq_matchers)
+        return MatcherSeqOr([self, other.as_seq_matcher()])
+
 
 class NodeMatcher(Matcher):
     def match(self, node: _Element) -> Iterator[Match]:
         raise NotImplemented
 
+    def as_seq_matcher(self) -> 'SeqMatcher':
+        return MatcherNodeAsSeq(self)
+
     def __pow__(self, label: str) -> 'NodeMatcher':
         """ Add a label the matched note. `**` was chosen due to its precedence """
         return MatcherLabelled(self, label)
 
-    def __truediv__(self, other: Union[SeqMatcher, 'NodeMatcher']) -> 'NodeMatcher':
+    def __truediv__(self, other: Matcher) -> 'NodeMatcher':
         """ `self / other` gives a matcher that matches the children with `other`.
-            Warning: `/` is left-associative, which is rather counter-intuitive in this case. """
+            `/` is left-associative, which is rather counter-intuitive in this case.
+            Overriding `__truediv__` in `MatcherNodeWithChildren` mitigates that.
+            """
         if isinstance(other, SeqMatcher):
             seq_matcher = other
         elif isinstance(other, NodeMatcher):
             seq_matcher = MatcherSeqAny(other)
         else:
             raise Exception(f'Unsupported object for children: {type(other)}')
-        return MatcherNodeWithChildren(self, seq_matcher)
+        return MatcherNodeWithChildren(self, seq_matcher, allow_remainder=isinstance(other, NodeMatcher))
+
+    def __or__(self, other: 'NodeMatcher') -> 'NodeMatcher':
+        assert isinstance(other, NodeMatcher)
+        if isinstance(other, MatcherNodeOr):
+            return MatcherNodeOr([self] + other.node_matchers)
+        return MatcherNodeOr([self, other])
+
+
+class MatcherSeqAny(SeqMatcher):
+    """ Matches a whole sequence if a single element matches the specified node matcher """
+
+    def __init__(self, node_matcher: NodeMatcher):
+        self.node_matcher = node_matcher
+
+    def match(self, nodes: List[_Element]) -> Iterator[Tuple[List[Match], List[_Element]]]:
+        for node in nodes:
+            for match in self.node_matcher.match(node):
+                yield [match], []
 
 
 class MatcherSeqConcat(SeqMatcher):
@@ -101,6 +138,26 @@ class MatcherSeqConcat(SeqMatcher):
                 for submatches, lastremainder in self.match(remainder, matchers[1:]):
                     yield match + submatches, lastremainder
 
+    def __add__(self, other: Matcher) -> 'SeqMatcher':
+        if isinstance(other, MatcherSeqConcat):
+            return MatcherSeqConcat(self.seq_matchers + other.seq_matchers)
+        return MatcherSeqConcat(self.seq_matchers + [other.as_seq_matcher()])
+
+
+class MatcherSeqOr(SeqMatcher):
+    def __init__(self, seq_matchers: List[SeqMatcher]):
+        self.seq_matchers = seq_matchers
+
+    def match(self, nodes: List[_Element]) -> Iterator[Tuple[List[Match], List[_Element]]]:
+        for matcher in self.seq_matchers:
+            for matches, remainder in matcher.match(nodes):
+                yield matches, remainder
+
+    def __or__(self, other: Matcher) -> 'SeqMatcher':
+        if isinstance(other, MatcherSeqOr):
+            return MatcherSeqOr(self.seq_matchers + other.seq_matchers)
+        return MatcherSeqOr(self.seq_matchers + [other.as_seq_matcher()])
+
 
 class MatcherNodeAsSeq(SeqMatcher):
     def __init__(self, node_matcher: NodeMatcher):
@@ -113,18 +170,6 @@ class MatcherNodeAsSeq(SeqMatcher):
             yield [match], nodes[1:]
 
 
-class MatcherSeqAny(SeqMatcher):
-    """ Matches a whole sequence if a single element matches the specified node matcher """
-
-    def __init__(self, node_matcher: NodeMatcher):
-        self.node_matcher = node_matcher
-
-    def match(self, nodes: List[_Element]) -> Iterator[Tuple[List[Match], List[_Element]]]:
-        for node in nodes:
-            for match in self.node_matcher.match(node):
-                yield [match], []
-
-
 class MatcherTag(NodeMatcher):
     def __init__(self, tagname: str):
         self.tagname = tagname
@@ -134,16 +179,40 @@ class MatcherTag(NodeMatcher):
             yield Match(node)
 
 
+class MatcherNodeOr(NodeMatcher):
+    def __init__(self, node_matchers: List[NodeMatcher]):
+        self.node_matchers = node_matchers
+
+    def match(self, node: _Element) -> Iterator[Match]:
+        for matcher in self.node_matchers:
+            for match in matcher.match(node):
+                yield match
+
+    def __or__(self, other: 'NodeMatcher') -> 'NodeMatcher':
+        assert isinstance(other, NodeMatcher)
+        if isinstance(other, MatcherNodeOr):
+            return MatcherNodeOr(self.node_matchers + other.node_matchers)
+        return MatcherNodeOr(self.node_matchers + [other])
+
+
 class MatcherNodeWithChildren(NodeMatcher):
-    def __init__(self, node_matcher: NodeMatcher, seq_matcher: SeqMatcher):
+    def __init__(self, node_matcher: NodeMatcher, seq_matcher: SeqMatcher, allow_remainder: bool = False):
         self.node_matcher = node_matcher
         self.seq_matcher = seq_matcher
+        self.allow_remainder = allow_remainder
 
     def match(self, node: _Element) -> Iterator[Match]:
         for match in self.node_matcher.match(node):
             for submatch, remaining in self.seq_matcher.match(node.getchildren()):
-                if not remaining:
+                if self.allow_remainder or not remaining:
                     yield match.with_children(submatch)
+
+    def __truediv__(self, other: Matcher) -> 'MatcherNodeWithChildren':
+        if isinstance(self.seq_matcher, MatcherSeqAny):
+            return MatcherNodeWithChildren(self.node_matcher, MatcherSeqAny(self.seq_matcher.node_matcher / other),
+                                           self.allow_remainder)
+        else:
+            raise Exception(f'Cannot use / in this case (left-hand-side is not a simple path)')
 
 
 class MatcherLabelled(NodeMatcher):
@@ -162,5 +231,4 @@ def tag(name: str) -> NodeMatcher:
 
 
 def seq(*matchers: Union[NodeMatcher, SeqMatcher]) -> SeqMatcher:
-    return MatcherSeqConcat(
-        [MatcherNodeAsSeq(matcher) if isinstance(matcher, NodeMatcher) else matcher for matcher in matchers])
+    return sum(matchers, MatcherSeqConcat([]))  # type: ignore
