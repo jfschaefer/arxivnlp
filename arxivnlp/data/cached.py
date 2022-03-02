@@ -21,8 +21,9 @@ class CachedData(Generic[T]):
 
         self.data: Optional[T] = None
 
-    def get_filepath(self) -> Path:
+    def _get_filepath(self) -> Path:
         path = self.config.cache_dir
+        assert path is not None
         if self.dirname is not None:
             path = path / self.dirname
         return path / (self.name + '.dmp.gz')
@@ -35,10 +36,13 @@ class CachedData(Generic[T]):
     def try_load_from_cache(self) -> bool:
         logger = logging.getLogger(__name__)
         logger.info(f'Attempting to load {self.data_descr} from cache')
-        path = self.get_filepath()
+        if self.config.cache_dir is None:
+            logger.error(f'No cache directory is specified in the config')
+            return False
+        path = self._get_filepath()
         if path.is_file():
             with gzip.open(path, 'rb') as fp:
-                self.data = pickle.load(fp)
+                self.data = pickle.load(fp)  # type: ignore
                 logger.info(f'Successfully loaded {self.data_descr} from {path}')
                 return True
         else:
@@ -46,9 +50,12 @@ class CachedData(Generic[T]):
         return False
 
     def write_to_cache(self):
-        assert self.data is not None
-        path = self.get_filepath()
         logger = logging.getLogger(__name__)
+        assert self.data is not None
+        if self.config.cache_dir is None:
+            logger.error(f'Failed to cache {self.data_descr}: no cache directory is specified in the config')
+            return
+        path = self._get_filepath()
         logger.info(f'Attempting to cache {self.data_descr} at {path}')
         if not path.parent.exists():
             logger.info(f'Creating {path.parent}')

@@ -1,9 +1,9 @@
 from typing import Set, List, Tuple, Dict, Optional
 
-from lxml import etree
+from lxml.etree import _Element, _ElementTree
 
 
-def get_node_classes(node: etree.Element) -> List[str]:
+def get_node_classes(node: _Element) -> List[str]:
     classes_of_node = node.get('class')
     if classes_of_node is None:
         return []
@@ -19,7 +19,7 @@ class DnmConfig(object):
         self.nodes_to_replace = nodes_to_replace
         self.classes_to_replace = classes_to_replace
 
-    def skip_node(self, node: etree.Element) -> bool:
+    def skip_node(self, node: _Element) -> bool:
         for e in get_node_classes(node):
             if e in self.classes_to_skip:
                 return True
@@ -27,27 +27,28 @@ class DnmConfig(object):
             return True
         return False
 
-    def replace_node(self, node: etree.Element) -> Optional[str]:
+    def replace_node(self, node: _Element) -> Optional[str]:
         if node.tag in self.nodes_to_replace:
             return self.nodes_to_replace[node.tag]
         for e in get_node_classes(node):
             if e in self.classes_to_replace:
                 return self.classes_to_replace[e]
+        return None
 
 
 class Token(object):
     def get_string(self) -> str:
         raise NotImplemented
 
-    def insert_node(self, node: etree.Element, pos: int, after: bool = False):
+    def insert_node(self, node: _Element, pos: int, after: bool = False):
         raise NotImplemented
 
-    def get_surrounding_node(self) -> etree.Element:
+    def get_surrounding_node(self) -> _Element:
         raise NotImplemented
 
 
 class StringToken(Token):
-    def __init__(self, content: str, backref_node: etree.Element, backref_type: str):
+    def __init__(self, content: str, backref_node: _Element, backref_type: str):
         self.content = content
         self.backref_node = backref_node
         self.backref_type = backref_type
@@ -55,49 +56,53 @@ class StringToken(Token):
     def get_string(self) -> str:
         return self.content
 
-    def insert_node(self, node: etree.Element, pos: int, after: bool = False):
+    def insert_node(self, node: _Element, pos: int, after: bool = False):
         if after:
             pos += 1
         if self.backref_type == 'text':
             self.backref_node.insert(0, node)  # 0 means child no. 0
+            assert self.backref_node.text is not None
             node.tail = self.backref_node.text[pos:]
             self.backref_node.text = self.backref_node.text[:pos]
         elif self.backref_type == 'tail':
             self.backref_node.addnext(node)  # add a new sibling and move tail behind
+            assert node.tail is not None
             self.backref_node.tail = node.tail[:pos]
             node.tail = node.tail[pos:]
         else:
             raise Exception(f'Unsupported backref type {self.backref_type}')
 
-    def get_surrounding_node(self) -> etree.Element:
+    def get_surrounding_node(self) -> _Element:
         if self.backref_type == 'text':
             return self.backref_node
         elif self.backref_type == 'tail':
-            return self.backref_node.getparent()
+            parent = self.backref_node.getparent()
+            assert parent is not None
+            return parent
         else:
             raise Exception(f'Unsupported backref type {self.backref_type}')
 
 
 class NodeToken(Token):
-    def __init__(self, backref_node: etree.Element, replaced_string: str):
+    def __init__(self, backref_node: _Element, replaced_string: str):
         self.backref_node = backref_node
         self.replaced_string = replaced_string
 
     def get_string(self) -> str:
         return self.replaced_string
 
-    def insert_node(self, node: etree.Element, pos: int, after: bool = False):
+    def insert_node(self, node: _Element, pos: int, after: bool = False):
         if after:
             self.backref_node.addnext(node)
         else:
             self.backref_node.addprevious(node)
 
-    def get_surrounding_node(self) -> etree.Element:
+    def get_surrounding_node(self) -> _Element:
         return self.backref_node
 
 
 class Dnm(object):
-    def __init__(self, tree: etree.ElementTree, dnm_config: DnmConfig):
+    def __init__(self, tree: _ElementTree, dnm_config: DnmConfig):
         self.tree = tree
         self.dnm_config = dnm_config
         self.is_clean: bool = True  # backrefs are still consistent with tree
@@ -108,9 +113,9 @@ class Dnm(object):
         self.string: str = result[0]
         self.backrefs: List[Tuple[Token, int]] = result[1]
 
-        self.nodes_to_add: List[Tuple[etree.Element, int, bool]] = []
+        self.nodes_to_add: List[Tuple[_Element, int, bool]] = []
 
-    def _append_to_tokens(self, node: etree.Element):
+    def _append_to_tokens(self, node: _Element):
         if not self.dnm_config.skip_node(node):
             replacement = self.dnm_config.replace_node(node)
             if replacement is not None:
@@ -131,7 +136,7 @@ class Dnm(object):
             backrefs.extend([(token, pos) for pos in range(len(token.get_string()))])
         return string, backrefs
 
-    def add_node(self, node: etree.Element, pos: int, after: bool = False):
+    def add_node(self, node: _Element, pos: int, after: bool = False):
         self.nodes_to_add.append((node, pos, after))
 
     def insert_added_nodes(self, ignore_is_clean: bool = False):
@@ -172,7 +177,7 @@ class DnmStr(object):
     def __repr__(self):
         return f'SubString({repr(self.string)})'
 
-    def get_node(self, pos: int) -> etree.Element:
+    def get_node(self, pos: int) -> _Element:
         return self.dnm.backrefs[self.backrefs[pos]][0].get_surrounding_node()
 
     def strip(self) -> 'DnmStr':

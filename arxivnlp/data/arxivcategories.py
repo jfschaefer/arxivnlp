@@ -20,12 +20,14 @@ class ArxivCategories(object):
     def doc_to_cats(self) -> Dict[str, List[str]]:
         if not self._doc_to_cats.ensured():
             self._load_from_original()
+        assert self._doc_to_cats.data
         return self._doc_to_cats.data
 
     @property
     def cat_to_docs(self) -> Dict[str, List[str]]:
         if not self._cat_to_docs.ensured():
             self._load_from_original()
+        assert self._cat_to_docs.data
         return self._cat_to_docs.data
 
     def _load_from_original(self):
@@ -59,6 +61,8 @@ def update(metadatafile: Path, config: Config):
             content = json.loads(line)
             data[content['id']] = content['categories'].split()
         logger.info(f'Found category data on {len(data)} documents')
+        if config.other_data_dir is None:
+            raise Exception('Directory for other data is not specified in config')
         with open(config.other_data_dir / 'categories.txt', 'w') as fp:
             for doc in sorted(data):
                 fp.write(f'{doc}: ' + ', '.join(data[doc]) + '\n')
@@ -70,5 +74,5 @@ def update(metadatafile: Path, config: Config):
             with file.open(file.namelist()[0]) as fp:
                 actual(fp)
     else:
-        with open(metadatafile) as fp:
-            actual(fp)
+        with open(metadatafile) as mfp:
+            actual(mfp)

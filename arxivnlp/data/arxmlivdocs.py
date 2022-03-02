@@ -4,7 +4,7 @@ import re
 import zipfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import IO, List, Set, Optional
+from typing import IO, List, Set, Optional, Iterator
 
 from .cached import ZipFileCache, CachedData
 from .exceptions import BadArxivId, MissingDataException
@@ -21,7 +21,7 @@ class ArXMLivDocs(object):
     arxiv_id_regex = re.compile(r'[^0-9]*(?P<yymm>[0-9]{4}).*')
 
     @contextmanager
-    def open(self, arxiv_id: str, read_as_text: bool = True) -> IO:
+    def open(self, arxiv_id: str, read_as_text: bool = True) -> Iterator[IO]:
         if arxiv_id.endswith('.html'):
             arxiv_id = arxiv_id[:-5]
         match = ArXMLivDocs.arxiv_id_regex.match(arxiv_id)
@@ -34,6 +34,8 @@ class ArXMLivDocs(object):
         attempts: List[Path] = []
         found: bool = False
         b = self.config.arxmliv_dir
+        if b is None:
+            raise MissingDataException(f'Path to arXMLiv not specified in config')
         if not b.is_dir():
             raise MissingDataException(f'{b} does not exist - make sure your config for the arXMLiv directory is set '
                                        f'correctly')
@@ -58,7 +60,12 @@ class ArXMLivDocs(object):
                     actual_file = file_zip.open(str(name), 'r')
                     try:
                         found = True
-                        yield io.TextIOWrapper(actual_file, encoding='utf-8') if read_as_text else actual_file
+                        result: IO
+                        if read_as_text:
+                            result = io.TextIOWrapper(actual_file, encoding='utf-8')
+                        else:
+                            result = actual_file
+                        yield result
                     finally:
                         actual_file.close()
                 except KeyError as e:
@@ -72,10 +79,13 @@ class ArXMLivDocs(object):
 
     def arxiv_ids(self) -> List[str]:
         if self.list_of_arxiv_ids.ensured():
+            assert self.list_of_arxiv_ids.data
             return self.list_of_arxiv_ids.data
         self.list_of_arxiv_ids.data = []
         yymm_regex = re.compile(r'^[0-9][0-9][0-9][0-9](\.zip)?$')
         processed_yymm: Set[str] = set()
+        if self.config.arxmliv_dir is None:
+            raise MissingDataException(f'ArXMLiv directory not specified in config')
         for path in itertools.chain(self.config.arxmliv_dir.iterdir(), (self.config.arxmliv_dir/'data').iterdir()):
             if not yymm_regex.match(path.name):
                 continue
@@ -85,9 +95,9 @@ class ArXMLivDocs(object):
             processed_yymm.add(yymm)
             if path.name.endswith('.zip'):
                 file_zip = self.zipfile_cache[path] if self.zipfile_cache is not None else zipfile.ZipFile(str(path))
-                for filename in file_zip.namelist():
-                    if filename.endswith('.html'):
-                        self.list_of_arxiv_ids.data.append(filename.split('/')[-1][:-5])
+                for name in file_zip.namelist():
+                    if name.endswith('.html'):
+                        self.list_of_arxiv_ids.data.append(name.split('/')[-1][:-5])
             elif path.is_dir():
                 for filename in path.iterdir():
                     if filename.name.endswith('.html'):

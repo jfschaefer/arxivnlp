@@ -1,21 +1,21 @@
 from typing import List, Optional
 
-from lxml import etree
+from lxml.etree import _Element
 
 from arxivnlp.data.dnm import DnmStr, get_node_classes
 
 
-def is_ref_node(node: etree.Element) -> bool:
+def is_ref_node(node: _Element) -> bool:
     classes = get_node_classes(node)
     return 'ltx_ref' in classes or 'ltx_cite' in classes
 
 
-def is_display_math(node: etree.Element) -> bool:
+def is_display_math(node: _Element) -> bool:
     classes = get_node_classes(node)
     return 'ltx_equation' in classes
 
 
-def is_in_header(node: etree.Element) -> bool:
+def is_in_header(node: _Element) -> bool:
     if node.tag in {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}:
         return True
     parent = node.getparent()

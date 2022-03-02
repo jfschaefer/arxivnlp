@@ -46,15 +46,14 @@ class ArgumentHandler(object):
             default_config.set_as_default()
 
 
-
 def parse_and_process(parser: argparse.ArgumentParser, handler: Optional[ArgumentHandler] = None,
                       args: Optional[List[str]] = None) -> argparse.Namespace:
     if handler is None:
         handler = ArgumentHandler()
     handler.add_arguments(parser)
-    args = parser.parse_args(args=args)
-    handler.handle_arguments(args)
-    return args
+    ns = parser.parse_args(args=args)
+    handler.handle_arguments(ns)
+    return ns
 
 
 def auto(args: Optional[List[str]] = None, parser: Optional[argparse.ArgumentParser] = None) -> argparse.Namespace:

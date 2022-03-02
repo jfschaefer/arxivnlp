@@ -7,8 +7,8 @@ import logging
 from typing import Optional, Iterable
 
 from rdflib import Graph, URIRef
-from rdflib_sqlalchemy.store import SQLAlchemy
-from sqlalchemy import create_engine
+from rdflib_sqlalchemy.store import SQLAlchemy  # type: ignore
+from sqlalchemy import create_engine  # type: ignore
 
 from ..config import Config
 
