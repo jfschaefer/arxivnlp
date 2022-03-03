@@ -1,3 +1,4 @@
+import unicodedata
 import unittest
 
 from lxml import etree

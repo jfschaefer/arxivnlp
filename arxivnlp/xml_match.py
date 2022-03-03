@@ -22,6 +22,13 @@ class LabelTree(object):
             raise KeyError(f'No child with label {item}')
         raise Exception(f'Cannot get item {item}')
 
+    def has_child(self, label: str) -> bool:
+        return any(child.label == label for child in self.children)
+
+    def __repr__(self):
+        s = ', '.join(repr(child) for child in self.children)
+        return f'"{self.label}": {{{s}}}'
+
 
 class Match(object):
     def __init__(self, node: Optional[_Element], label: Optional[str] = None, children: Optional[List['Match']] = None):
@@ -196,7 +203,8 @@ class MatcherNodeWithText(NodeMatcher):
         self.regex = regex
 
     def match(self, node: _Element) -> Iterator[Match]:
-        if node.text is not None and self.regex.match(node.text):
+        text = node.text if node.text is not None else ''
+        if self.regex.match(text):
             return self.node_matcher.match(node)
         return iter(())
 

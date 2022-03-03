@@ -3,7 +3,7 @@ import gzip
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Dict, Set
+from typing import List, Optional, Dict, Set, Any
 
 import requests
 from lxml import etree
@@ -56,7 +56,8 @@ class Dimension(object):
         tree = etree.XML(mathml)
         no_dim = False
         dims: Dict[str, int] = {}
-        for node in tree.xpath('//*[local-name()="mstyle"]/*'):
+        node: Any
+        for node in tree.xpath('//*[local-name()="mstyle"]/*'): # type: ignore
             assert not no_dim
             if node.tag == '{http://www.w3.org/1998/Math/MathML}mn':
                 assert node.text.strip() == '1'
@@ -112,6 +113,7 @@ class Quantity(object):
     def __init__(self, identifier: str, label: str):
         self.identifier = identifier
         self.label = label
+        self.alt_labels: List[str] = []
         self.parents: List['Quantity'] = []
         self.dimension: Optional[Dimension] = None
         self.symbols: Set[str] = set()
@@ -125,10 +127,12 @@ class Unit(object):
     def __init__(self, identifier: str, label: str):
         self.identifier = identifier
         self.label = label
+        self.alt_labels: List[str] = []
         self.quantities: List[Quantity] = []
         self.dimension: Optional[Dimension] = None
         self.notations: Set[str] = set()
         self.si_conversion: Optional[float] = None
+        self.si_conversion_unit: Optional['Unit'] = None
 
     @property
     def uri(self) -> str:
@@ -143,6 +147,9 @@ class QuantityWikiData(object):
         self.label_to_unit: Dict[str, List[Unit]] = {}
         for unit in self.units:
             self.label_to_unit.setdefault(unit.label, []).append(unit)
+            for alt_label in unit.alt_labels:
+                if len(alt_label) > 4:
+                    self.label_to_unit.setdefault(alt_label, []).append(unit)
 
 
 class QuantityWikiDataLoader(object):
@@ -152,6 +159,7 @@ class QuantityWikiDataLoader(object):
 
     def get(self) -> QuantityWikiData:
         if self.data.ensured():
+            assert self.data.data is not None
             return self.data.data
 
         # STEP 1: COMPILE QUANTITY DATA
@@ -160,7 +168,7 @@ class QuantityWikiDataLoader(object):
         quant_parents: Dict[str, List[str]] = {}
         with self.load_csv('quantities', ['quantity', 'quantityLabel', 'dimension', 'super_quantities', 'symbols',
                                           'symbols_ltx', 'altLabels']) as quantities_reader:
-            for quantity, quantityLabel, dimension, super_quantities, symbols, symbols_ltx, altLabels \
+            for quantity, quantityLabel, dimension, super_quantities, symbols, symbols_ltx, alt_labels \
                     in quantities_reader:
                 identifier = quantity.split('/')[-1]
                 new_quant = Quantity(identifier, quantityLabel)
@@ -178,9 +186,9 @@ class QuantityWikiDataLoader(object):
                     quant_parents[identifier] = [s.strip().split('/')[-1] for s in super_quantities.split('❙')]
 
         # STEP 2: LINK QUANTITY DATA
-        for quant in quant_parents:
-            quantity = quantities[quant]
-            for q2 in quant_parents[quant]:
+        for quant_id in quant_parents:
+            quantity = quantities[quant_id]
+            for q2 in quant_parents[quant_id]:
                 if q2 in quantities:
                     quantity.parents.append(quantities[q2])
         # copy dimensions (implementation could be optimized, but it's fast enough)
@@ -196,16 +204,18 @@ class QuantityWikiDataLoader(object):
 
         # STEP 3: COMPILE UNIT DATA
         units: Dict[str, Unit] = {}
+        si_conv_unit: Dict[Unit, str] = {}
         with self.load_csv('units', ['unit', 'unitLabel', 'quantities', 'SIamounts', 'SIunit',
                                      'notations', 'altLabels']) as units_reader:
-            for unit_uri, unitLabel, unit_quantities, si_amounts, si_unit, notations, altLables in units_reader:
+            for unit_uri, unitLabel, unit_quantities, si_amounts, si_unit, notations, alt_labels in units_reader:
                 identifier = unit_uri.split('/')[-1]
                 assert identifier not in units
                 units[identifier] = Unit(identifier, unitLabel)
                 unit = units[identifier]
+                unit.alt_labels = alt_labels.strip().split('❙')
                 if unit_quantities.strip():
-                    for q in unit_quantities.split('❙'):
-                        qq = q.strip().split('/')[-1]
+                    for qstr in unit_quantities.split('❙'):
+                        qq = qstr.strip().split('/')[-1]
                         if qq in quantities:
                             quant = quantities[qq]
                             assert quant not in unit.quantities
@@ -217,9 +227,14 @@ class QuantityWikiDataLoader(object):
                 if si_amounts.strip():
                     # for now, pick only the first one
                     unit.si_conversion = float(si_amounts.split('❙')[0])
+                    si_conv_unit[unit] = si_unit.split('/')[-1]
+        for unit, si_unit_id in si_conv_unit.items():
+            unit.si_conversion_unit = units[si_unit_id]
 
         self.data.data = QuantityWikiData(list(quantities.values()), list(units.values()))
         # TODO: write data to cache (once pre-processing has converged)
+
+        return self.data.data
 
     @contextmanager
     def load_csv(self, queryname: str, assert_columns: Optional[List[str]] = None):
@@ -240,6 +255,8 @@ class QuantityWikiDataLoader(object):
             fp.close()
 
     def download(self, queryname: str) -> Path:
+        if self.config.other_data_dir is None:
+            raise Exception('No directory for other data was specified in the config')
         path = self.config.other_data_dir / 'quantities'
         path.mkdir(exist_ok=True)
         logger = logging.getLogger(__name__)
