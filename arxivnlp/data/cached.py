@@ -145,6 +145,7 @@ class ZipFileCache(object):
     def close(self):
         logger = logging.getLogger(__name__)
         for zf in self.zipfiles.values():
+            zf.clean()
             if zf.opened_files:
                 logger.warning(f'{zf.filename} still has open files')
             zf.close()
