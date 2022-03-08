@@ -1,7 +1,6 @@
 import sys
 import time
-from typing import Tuple
-import time
+from typing import Tuple, Dict
 
 
 class StatusLine(object):
@@ -41,7 +40,7 @@ class StatusBar(object):
         if self.with_time:
             time_passed = time.time() - self.start_time
             if self.fraction > 0.0:
-                rem = format_seconds((1 - self.fraction)/self.fraction * time_passed)
+                rem = format_seconds((1 - self.fraction) / self.fraction * time_passed)
             else:
                 rem = chr(0x221e)
             time_str = f' (t: {format_seconds(time_passed).rjust(7)}, rem.:{rem.rjust(7)})'
@@ -72,8 +71,12 @@ def format_seconds(seconds: float) -> str:
         return f'{seconds / 3600:.1f} h'
     else:
         return f'{int(seconds / 3600)} h'
-    
-    
+
+
+to_superscript: Dict[str, str] = {'-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+                                  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'}
+from_superscript: Dict[str, str] = {to_superscript[c]: c for c in to_superscript}
+
+
 def superscript_int(integer: int) -> str:
-    return ''.join({'-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-                    '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'}[c] for c in str(integer))
+    return ''.join(to_superscript[c] for c in str(integer))

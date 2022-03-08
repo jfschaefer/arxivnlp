@@ -5,6 +5,11 @@ from lxml.etree import _Element, _ElementTree
 from arxivnlp.util import get_node_classes
 
 
+class NodeRef(object):
+    def __init__(self, nodeid: str, sub_xpath: Optional[str], ltx_para: Optional[str]):
+        pass
+
+
 class DnmConfig(object):
     def __init__(self, nodes_to_skip: Set[str], classes_to_skip: Set[str], nodes_to_replace: Dict[str, str],
                  classes_to_replace: Dict[str, str]):
@@ -102,33 +107,37 @@ class Dnm(object):
         self.is_clean: bool = True  # backrefs are still consistent with tree
 
         self.tokens: List[Token] = []
+        self.node_to_token_range: Dict[_Element, Tuple[int, int]] = {}
+        self.node_to_text_token: Dict[_Element, StringToken] = {}
+        self.node_to_tail_token: Dict[_Element, StringToken] = {}
         self._append_to_tokens(tree.getroot())
-        result = self.generate_string()
-        self.string: str = result[0]
-        self.backrefs: List[Tuple[Token, int]] = result[1]
+        self.string: str = ''
+        self.backrefs_token: List[Token] = []
+        self.backrefs_pos: List[int] = []
+        self.string = ''.join(token.get_string() for token in self.tokens)
+        self.backrefs_token = [token for token in self.tokens for _ in range(len(token.get_string()))]
+        self.backrefs_pos = [pos for token in self.tokens for pos in range(len(token.get_string()))]
 
         self.nodes_to_add: List[Tuple[_Element, int, bool]] = []
 
     def _append_to_tokens(self, node: _Element):
         if not self.dnm_config.skip_node(node):
+            start_range = len(self.tokens)
             replacement = self.dnm_config.replace_node(node)
             if replacement is not None:
                 self.tokens.append(NodeToken(backref_node=node, replaced_string=replacement))
             else:
                 if node.text:
-                    self.tokens.append(StringToken(content=node.text, backref_node=node, backref_type='text'))
+                    token = StringToken(content=node.text, backref_node=node, backref_type='text')
+                    self.tokens.append(token)
+                    self.node_to_text_token[node] = token
                 for child in node:
                     self._append_to_tokens(child)
                     if child.tail:
-                        self.tokens.append(StringToken(content=child.tail, backref_node=child, backref_type='tail'))
-
-    def generate_string(self) -> Tuple[str, List[Tuple[Token, int]]]:
-        string = ''
-        backrefs = []
-        for token in self.tokens:
-            string += token.get_string()
-            backrefs.extend([(token, pos) for pos in range(len(token.get_string()))])
-        return string, backrefs
+                        token = StringToken(content=child.tail, backref_node=child, backref_type='tail')
+                        self.tokens.append(token)
+                        self.node_to_tail_token[child] = token
+            self.node_to_token_range[node] = (start_range, len(self.tokens))
 
     def add_node(self, node: _Element, pos: int, after: bool = False):
         self.nodes_to_add.append((node, pos, after))
@@ -144,9 +153,10 @@ class Dnm(object):
         # 1. from back to front
         # 2. first after
         # 3. prefer the ones inserted first, unless it is a string token (and not after)
-        l.sort(key=lambda e: (-e[1][1], -int(e[1][2]), -e[0] if isinstance(self.backrefs[e[1][1]][0], StringToken) and not e[1][2] else e[0]))
+        l.sort(key=lambda e: (-e[1][1], -int(e[1][2]),
+                              -e[0] if isinstance(self.backrefs_token[e[1][1]], StringToken) and not e[1][2] else e[0]))
         for node, pos, after in (e[1] for e in l):
-            token, pos_relative = self.backrefs[pos]
+            token, pos_relative = self.backrefs_token[pos], self.backrefs_pos[pos]
             token.insert_node(node, pos_relative, after)
         self.nodes_to_add = []
 
@@ -172,7 +182,7 @@ class DnmStr(object):
         return f'SubString({repr(self.string)})'
 
     def get_node(self, pos: int) -> _Element:
-        return self.dnm.backrefs[self.backrefs[pos]][0].get_surrounding_node()
+        return self.dnm.backrefs_token[self.backrefs[pos]].get_surrounding_node()
 
     def strip(self) -> 'DnmStr':
         str_start = 0

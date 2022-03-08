@@ -3,16 +3,15 @@ import gzip
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Dict, Set, Any
+from typing import List, Optional, Dict, Set
 
 import requests
-from lxml import etree
 
 from arxivnlp.config import Config
 from arxivnlp.data.cached import CachedData
 from arxivnlp.data.exceptions import MissingDataException
 from arxivnlp.data.utils import require_other_data
-from arxivnlp.utils import superscript_int
+from arxivnlp.examples.quantities.dimension import Dimension
 
 
 def wikidata_sparql_query(query: str) -> str:
@@ -23,64 +22,6 @@ def wikidata_sparql_query(query: str) -> str:
         logger.error(f'Got response {result.status_code} from query.wikidata.org')
         raise MissingDataException('Failed to get data from wikidata:\n' + result.text)
     return result.text
-
-
-class Dimension(object):
-    # time, length, mass, electirc current, abs. temperature, amount of subst., luminous intensity
-    dim_order: List[str] = list('TLMIΘNJ')
-    acceptable_dims: Set[str] = set(dim_order)
-
-    def __init__(self, dims: Dict[str, int]):
-        assert all(dim in self.acceptable_dims for dim in dims)
-        self.dims = dims
-
-    def __str__(self) -> str:
-        """ Unique string representation """
-        s: str = ''
-        for d in self.dim_order:
-            if d in self.dims and self.dims[d]:
-                s += f'{d}{superscript_int(self.dims[d])}'
-        if not s:
-            s = '1'
-        return s
-
-    def __eq__(self, other) -> bool:
-        return str(self) == str(other)
-
-    def __neq__(self, other) -> bool:
-        return str(self) != str(other)
-
-    @classmethod
-    def from_wikidata_mathml(cls, mathml: str) -> 'Dimension':
-        """ this code is brittle and may break if the WikiData MathML representation for dimensions changes """
-        tree = etree.XML(mathml)
-        no_dim = False
-        dims: Dict[str, int] = {}
-        node: Any
-        for node in tree.xpath('//*[local-name()="mstyle"]/*'): # type: ignore
-            assert not no_dim
-            if node.tag == '{http://www.w3.org/1998/Math/MathML}mn':
-                assert node.text.strip() == '1'
-                no_dim = True
-            elif node.tag == '{http://www.w3.org/1998/Math/MathML}mi':
-                char = node.text.strip()
-                assert char not in dims
-                dims[char] = 1
-            elif node.tag == '{http://www.w3.org/1998/Math/MathML}mrow':
-                char = node.xpath('.//*[local-name()="mi"]/text()')[0].strip()
-                assert char not in dims
-                dims[char] = 1
-            elif node.tag == '{http://www.w3.org/1998/Math/MathML}msup':
-                char = node.xpath('.//*[local-name()="mi"]/text()')[0].strip()
-                assert char not in dims
-                n = int(node.xpath('.//*[local-name()="mn"]/text()')[0].strip())
-                if node.xpath('.//*[local-name()="mo"]'):
-                    n *= -1
-                dims[char] = n
-            else:
-                print(mathml)
-                raise Exception(f'Unexpected tag: {node.tag}')
-        return Dimension(dims)
 
 
 # def notation_norm(notation: str) -> Set[str]:
@@ -117,6 +58,7 @@ class Quantity(object):
         self.parents: List['Quantity'] = []
         self.dimension: Optional[Dimension] = None
         self.symbols: Set[str] = set()
+        self.symbols_ltx_mml: List[str] = []
 
     @property
     def uri(self) -> str:
@@ -172,6 +114,9 @@ class QuantityWikiDataLoader(object):
                     in quantities_reader:
                 identifier = quantity.split('/')[-1]
                 new_quant = Quantity(identifier, quantityLabel)
+                for mml in symbols_ltx.strip().split('❙'):
+                    if mml:
+                        new_quant.symbols_ltx_mml.append(mml)
                 assert identifier not in quantities
                 quantities[identifier] = new_quant
                 if dimension.strip():
@@ -212,7 +157,10 @@ class QuantityWikiDataLoader(object):
                 assert identifier not in units
                 units[identifier] = Unit(identifier, unitLabel)
                 unit = units[identifier]
-                unit.alt_labels = alt_labels.strip().split('❙')
+                if alt_labels.strip():
+                    unit.alt_labels = alt_labels.strip().split('❙')
+                if notations.strip():
+                    unit.notations = set(notations.strip().split('❙'))
                 if unit_quantities.strip():
                     for qstr in unit_quantities.split('❙'):
                         qq = qstr.strip().split('/')[-1]

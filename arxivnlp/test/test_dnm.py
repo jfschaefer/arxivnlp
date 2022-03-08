@@ -28,8 +28,8 @@ class TestDnm(unittest.TestCase):
                                              nodes_to_replace={'math': 'MathNode'},
                                              classes_to_replace={}))
         self.assertEqual(dnm.string, 'abc MathNode nope')
-        self.assertEqual(dnm.backrefs[3][0].get_surrounding_node().tag, 'a')
-        self.assertEqual(dnm.backrefs[12][0].get_surrounding_node().tag, 'a')
+        self.assertEqual(dnm.backrefs_token[3].get_surrounding_node().tag, 'a')
+        self.assertEqual(dnm.backrefs_token[12].get_surrounding_node().tag, 'a')
         substring = dnm.get_full_dnmstr()
         self.assertEqual(substring.string, 'abc MathNode nope')
         self.assertEqual(substring.get_node(3).tag, 'a')
