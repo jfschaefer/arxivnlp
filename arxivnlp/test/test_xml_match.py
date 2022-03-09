@@ -1,5 +1,5 @@
-import unicodedata
 import unittest
+from unittest import skip
 
 from lxml import etree
 
@@ -27,6 +27,22 @@ class TestDnm(unittest.TestCase):
           </semantics>
         </math>''')
 
+    formula_2 = etree.XML('''
+<math id="S5.SS1.p2.8.m8.1" class="ltx_Math" alttext="\\sim 10\\%" display="inline">
+  <semantics id="S5.SS1.p2.8.m8.1a">
+    <mrow id="S5.SS1.p2.8.m8.1.1" xref="S5.SS1.p2.8.m8.1.1.cmml">
+      <mi id="S5.SS1.p2.8.m8.1.1.2" xref="S5.SS1.p2.8.m8.1.1.2.cmml"/>
+      <mo id="S5.SS1.p2.8.m8.1.1.1" xref="S5.SS1.p2.8.m8.1.1.1.cmml">&#x223C;</mo>
+      <mrow id="S5.SS1.p2.8.m8.1.1.3" xref="S5.SS1.p2.8.m8.1.1.3.cmml">
+        <mn id="S5.SS1.p2.8.m8.1.1.3.2" xref="S5.SS1.p2.8.m8.1.1.3.2.cmml">10</mn>
+        <mo id="S5.SS1.p2.8.m8.1.1.3.1" xref="S5.SS1.p2.8.m8.1.1.3.1.cmml">%</mo>
+      </mrow>
+    </mrow>
+  </semantics>
+</math>
+    ''')
+
+    @skip
     def test_simple(self):
         base_matcher = xm.tag('math') / xm.tag('semantics')
 
@@ -46,3 +62,8 @@ class TestDnm(unittest.TestCase):
                   (xm.tag('apply') / xm.tag('ci') ** 'identifier_ci' | xm.tag('mi') ** 'identifier_mi')
         matches = list(matcher.match(self.formula_1))
         self.assertEqual(len(matches), 4)
+
+    def test_seq_or(self):
+        matcher = xm.seq(xm.empty_seq | xm.empty_seq, xm.tag('math'))
+        matches = list(matcher.match([self.formula_1]))
+        self.assertGreaterEqual(len(matches), 1)

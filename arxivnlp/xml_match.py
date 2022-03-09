@@ -146,13 +146,14 @@ class MatcherSeqConcat(SeqMatcher):
         if matchers is None:
             matchers = self.seq_matchers
         if not matchers:
-            return iter(([], nodes))
-        for match, remainder in matchers[0].match(nodes):
-            if len(matchers) == 1:
-                yield match, remainder
-            else:
-                for submatches, lastremainder in self.match(remainder, matchers[1:]):
-                    yield match + submatches, lastremainder
+            yield [], nodes
+        else:
+            for match, remainder in matchers[0].match(nodes):
+                if len(matchers) == 1:
+                    yield match, remainder
+                else:
+                    for submatches, lastremainder in self.match(remainder, matchers[1:]):
+                        yield match + submatches, lastremainder
 
     def __add__(self, other: Matcher) -> 'SeqMatcher':
         if isinstance(other, MatcherSeqConcat):
