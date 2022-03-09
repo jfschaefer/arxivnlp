@@ -30,6 +30,7 @@ class ArXMLivDocs(object):
     def open(self, arxiv_id: str, read_as_text: bool = True) -> Iterator[IO]:
         if arxiv_id.endswith('.html'):
             arxiv_id = arxiv_id[:-5]
+        arxiv_id = arxiv_id.replace('/', '')  # e.g. 'cond-mat/9807111' -> 'cond-mat9807111'
         match = ArXMLivDocs.arxiv_id_regex.match(arxiv_id)
         if not match:
             raise BadArxivId(f'Failed to infer yymm from arxiv id "{arxiv_id}"')

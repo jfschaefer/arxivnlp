@@ -1,15 +1,20 @@
 import enum
+import json
 from dataclasses import dataclass, field
 from enum import IntEnum, Flag
 from typing import Dict, List, Optional, Tuple
+
+from lxml.etree import _Element
 
 from arxivnlp.examples.quantities.dimension import Dimension
 from arxivnlp.examples.quantities.wikidata import QuantityWikiData
 from arxivnlp.utils import from_superscript
 
 
-@dataclass
+@dataclass()
 class Notation(object):
+    # these kinds of optimizations might be necessary because we expect to have very many notations
+    __slots__ = ['nodetype', 'attr', 'children', '_jsonstr']
     nodetype: str
     attr: Dict[str, str]
     children: List['Notation']
@@ -19,48 +24,48 @@ class Notation(object):
         assert self.nodetype in n_children
         assert len(self.children) == n_children[self.nodetype]
 
-    def __lt__(self, other) -> bool:
-        """ an arbitrary strict total order -- TODO: Is there an easier way? """
-        if self.nodetype < other.nodetype:
-            return True
-        if self.nodetype > other.nodetype:
-            return False
-        if len(self.children) < len(other.children):
-            return True
-        if len(self.children) > len(other.children):
-            return False
-        for sc, oc in zip(self.children, other.children):
-            if sc < oc:
-                return True
-            if sc > oc:
-                return False
-        if len(self.attr) < len(other.attr):
-            return True
-        if len(self.attr) > len(other.attr):
-            return False
-        for c in sorted(self.attr.keys()):
-            if self.attr[c] < other.attr[c]:
-                return True
-            elif self.attr[c] > other.attr[c]:
-                return False
-        return False  # they're equal
+        children = ', '.join(child.to_json() for child in self.children)
+        attr = ', '.join(f'{json.dumps(key)}: {json.dumps(self.attr[key])}' for key in sorted(self.attr))
+        self._jsonstr = f'[{json.dumps(self.nodetype)}, {{{attr}}}, [{children}]]'
 
-    def __eq__(self, other):
-        return self.nodetype == other.nodetype and len(self.children) == len(other.children) and \
-            all(sc == oc for sc, oc in zip(self.children, other.children)) and \
-            len(self.attr) == len(other.attr) and all(self.attr[k] == other.attr[k] for k in self.attr)
+#     @classmethod
+#     def from_pmml(cls, node: _Element) -> 'Notation':
+#         if node.tag == 'mi':
+#             attr = {'val': node.text}
+#             mv = node.get('mathvariant')
+#             if mv:
+#                 attr['mathvariant'] = mv
+#             return Notation('i', attr, [])
+#         elif node.tag == ''
 
-    def __gt__(self, other):
-        return (not self < other) and not self == other
+    def to_json(self) -> str:
+        """ Also serves as canonical string representation """
+        return self._jsonstr
 
+    @classmethod
+    def from_json(cls, json_list) -> 'Notation':
+        return Notation(json_list[0], json_list[1], [Notation.from_json(e) for e in json_list[3]])
+
+    def __lt__(self, other: 'Notation') -> bool:
+        return self.to_json() < other.to_json()
 
 
 @dataclass
 class UnitNotation(object):
+    __slots__ = ['parts', '_jsonstr']
     parts: List[Tuple[Notation, int]]
 
     def __post_init__(self):
         self.parts.sort()
+        self._jsonstr = f'[{", ".join(f"[{notation.to_json()}, {exp}]" for notation, exp in self.parts)}]'
+
+    def to_json(self) -> str:
+        """ Also serves as canonical string representation """
+        return self._jsonstr
+
+    @classmethod
+    def from_json(cls, json_list) -> 'UnitNotation':
+        return UnitNotation([(Notation.from_json(notation), exp) for [notation, exp] in json_list])
 
     @classmethod
     def from_wikidata_string(cls, full_string: str) -> 'UnitNotation':
@@ -77,7 +82,10 @@ class UnitNotation(object):
             e = int(exponent) if exponent else 1
             if in_denominator:
                 e = -e
-            parts.append((Notation('i', {'val': cur_id}, []), e))
+            attr = {'val': cur_id}
+#             if len(cur_id) == 1:
+#                 attr['mathvariant'] = 'normal'
+            parts.append((Notation('i', attr, []), e))
             cur_id = ''
             exponent = ''
 
@@ -106,7 +114,10 @@ class UnitNotation(object):
         return unit_notation
 
     def __hash__(self):
-        return id(self)
+        return hash(self._jsonstr)
+
+    def __eq__(self, other: 'UnitNotation') -> bool:
+        return self._jsonstr == other._jsonstr
 
 
 class Certainty(IntEnum):
@@ -170,11 +181,14 @@ class QuantityKb(object):
     def __init__(self):
         self.all_units: List[Unit] = []
         self.all_quantities: List[Quantity] = []
+        self.unit_notation_to_units: Dict[UnitNotation, List[Unit]] = {}
 
     def add_unit(self, unit: Unit):
         assert unit.id == -1
         unit.id = len(self.all_units)
         self.all_units.append(unit)
+        for unit_notation in unit.notations:
+            self.unit_notation_to_units.setdefault(unit_notation, []).append(unit)
 
     def add_quantity(self, quanitity: Quantity):
         assert quanitity.id == -1
@@ -212,6 +226,10 @@ class QuantityKb(object):
                 notations={UnitNotation.from_wikidata_string(s): MetaData(Creation.WIKIDATA | Creation.GUESS) for s in
                            unit.notations}
             )
+            if u.display_name == 'percent':
+                print('Percent:')
+                for notation in u.notations:
+                    print('  notation:', notation.to_json())
             u_wd_to_kb[unit] = u
             kb.add_unit(u)
         for unit in qwd.units:

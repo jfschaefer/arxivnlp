@@ -1,3 +1,8 @@
+"""
+LEGACY CODE - see experiment2.py for more recent stuff
+"""
+
+
 from pathlib import Path
 from typing import List, Any, Optional, Union
 import unicodedata
@@ -180,6 +185,7 @@ def process(arxivid: str, data_manager: DataManager, data: QuantityWikiData):
             node.addnext(etree.XML(
                 f'<span><span class="arxivnlpmessagemarker">{star}</span><span class="arxivnlpmessage">{message}</span></span>'))
         dom.xpath('.//head')[0].append(etree.XML(f'<style>{CSS}</style>'))  # TODO: Escape CSS
+        dom.xpath('.//head')[0].append(etree.XML('<link rel="stylesheet" href="https://ar5iv.labs.arxiv.org/assets/ar5iv.0.7.4.min.css" />'))
         with open(f'/tmp/units-{arxivid}.html', 'wb') as fp:
             fp.write(etree.tostring(dom))
 
