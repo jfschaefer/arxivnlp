@@ -1,9 +1,5 @@
-"""
-LEGACY CODE - see spotter.py and annotator.py for the proper implementation
-"""
-
 import unicodedata
-from typing import Union, Any
+from typing import Union, Any, Iterator
 
 from lxml import etree
 
@@ -11,32 +7,12 @@ import arxivnlp.args
 from arxivnlp import xml_match as xm
 from arxivnlp.config import Config
 from arxivnlp.data.datamanager import DataManager
+from arxivnlp.data.dnm import DnmRange, DnmPoint
+from arxivnlp.examples.quantities.center import PossibleFind, QuantityCenter
 from arxivnlp.examples.quantities.experiment import get_relevant_documents
 from arxivnlp.examples.quantities.quantity_kb import QuantityKb, UnitNotation, Notation
 from arxivnlp.examples.quantities.wikidata import QuantityWikiDataLoader
 from arxivnlp.xml_match import LabelTree
-
-CSS = '''
-.arxivnlpmessage {
-  display: none;
-  position: absolute;
-  background-color: #ddddaa;
-  border-style: solid;
-  border-color: #330000;
-  padding: 10px;
-  font-size: 24pt;
-}
-
-.arxivnlpmessagemarker:hover + .arxivnlpmessage {
-  display: block;
-}
-
-.arxivnlpmessagemarker {
-  font-weight: bold;
-  font-size: 150%;
-  color: red;
-}
-'''
 
 
 def get_matcher() -> xm.NodeMatcher:
@@ -107,11 +83,11 @@ def simple_unit_to_notation(lt: LabelTree) -> Notation:
     attr = {'val': node.text}
     if node.tag == 'mi' and node.text and len(node.text) == 1 and node.get('mathvariant') != 'normal':
         attr['isitalic'] = True
-#     mv = node.get('mathvariant')
-#     if mv:
-#         attr['mathvariant'] = mv
-#     if node.tag == 'mo' and not mv:
-#         attr['mathvariant'] = 'normal'
+    #     mv = node.get('mathvariant')
+    #     if mv:
+    #         attr['mathvariant'] = mv
+    #     if node.tag == 'mo' and not mv:
+    #         attr['mathvariant'] = 'normal'
     return Notation('i', attr, [])
 
 
@@ -140,7 +116,7 @@ def unit_to_unit_notation(lt: LabelTree) -> UnitNotation:
     raise Exception(f'Unsupported node: {lt.label}')
 
 
-def process(arxivid: str, data_manager: DataManager, quantity_kb: QuantityKb):
+def search(arxivid: str, data_manager: DataManager) -> Iterator[PossibleFind]:
     html_parser: Any = etree.HTMLParser()  # Setting type to Any suppresses annoying warnings
     matcher = get_matcher()
 
@@ -150,31 +126,16 @@ def process(arxivid: str, data_manager: DataManager, quantity_kb: QuantityKb):
             matches = list(matcher.match(node))
             if not matches:
                 if node.xpath('.//*[@class="ltx_unit"]'):
-                    node.addnext(etree.XML('<span style="color:orange;font-size:150%"><b>o</b></span>'))
+                    print('no match despit ltx_unit')
                 continue
             print('matches')
             assert len(matches) == 1
             tree = matches[0].to_label_tree()
             scalar = tree_to_number(tree['scalar'])
-            message = ''
-            count = 0
             unit_notation = unit_to_unit_notation(tree['unit'])
-            for unit in (quantity_kb.unit_notation_to_units.get(unit_notation) if unit_notation in quantity_kb.unit_notation_to_units else []):
-                count += 1
-                message += f'<br/>{scalar} {unit.display_name}'
-                if unit.conversion_factor is not None:
-                    message += f' ≈ {scalar * unit.conversion_factor} {unit.conversion_unit.display_name}'
-            if not message:
-                message = f'{scalar} {unit_notation.to_json()}'
-            star = '*'
-            if count != 1:
-                star = f'<span style="color:purple">{star}</span>'
-            node.addnext(etree.XML(
-                f'<span><span class="arxivnlpmessagemarker">{star}</span><span class="arxivnlpmessage">{message}</span></span>'))
-        dom.xpath('.//head')[0].append(etree.XML(f'<style>{CSS}</style>'))  # TODO: Escape CSS
-        dom.xpath('.//head')[0].append(etree.XML('<link rel="stylesheet" href="https://ar5iv.labs.arxiv.org/assets/ar5iv.0.7.4.min.css" />'))
-        with open(f'/tmp/units-{arxivid}.html', 'wb') as fp:
-            fp.write(etree.tostring(dom))
+            print(tree['unit'].node, tree['unit'].children, tree['unit'].children[0].node)
+            dnm_range = DnmRange(DnmPoint(tree['unit'].children[0].node), DnmPoint(tree['unit'].children[0].node), right_closed=True)
+            yield PossibleFind(dnm_range=dnm_range, unit_notation=unit_notation)
 
 
 def main():
@@ -183,11 +144,13 @@ def main():
     data = QuantityWikiDataLoader(config).get()
     data_manager = DataManager(config)
     quantity_kb = QuantityKb.from_wikidata(data)
+    quantity_center = QuantityCenter(data_manager, quantity_kb)
     arxivids = get_relevant_documents(config, data_manager)[:5]
     # arxivids = ['astro-ph0604002']
     for arxivid in arxivids:
         print(f'Processing {arxivid}')
-        process(arxivid, data_manager, quantity_kb)
+        possible_finds = list(search(arxivid, data_manager))
+        quantity_center.process_finds(arxivid, possible_finds)
 
 
 if __name__ == '__main__':

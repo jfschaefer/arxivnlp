@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from enum import IntEnum, Flag
 from typing import Dict, List, Optional, Tuple
 
-from lxml.etree import _Element
-
 from arxivnlp.examples.quantities.dimension import Dimension
 from arxivnlp.examples.quantities.wikidata import QuantityWikiData
 from arxivnlp.utils import from_superscript
@@ -243,30 +241,3 @@ class QuantityKb(object):
         return kb
 
 
-@dataclass
-class Occurrence(object):
-    arxivid: str
-    certainty: Certainty
-
-    unit_id: int
-    unit_ref: str
-    unit_notation: str
-
-    amount_ref: Optional[str] = None
-    amount_val: Optional[float] = None
-
-    # in case of range: re_* refers to end of range
-    re_amount_ref: Optional[str] = None
-    re_amount_val: Optional[float] = None
-    re_unit_id: Optional[int] = None
-    re_unit_ref: Optional[str] = None
-    re_unit_notation: Optional[str] = None
-
-    # in case the range is actually one value with error bars
-    # (e.g. in x ± y, we would have amount_val = x-y, re_amount_val = x+y, amount_center_val = y)
-    amount_center_val: Optional[float] = None
-
-    quantity: List[int] = field(default_factory=list)
-    quantity_notation: List[str] = field(default_factory=list)
-
-    logs: str = ''

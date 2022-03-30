@@ -5,9 +5,47 @@ from lxml.etree import _Element, _ElementTree
 from arxivnlp.util import get_node_classes
 
 
-class NodeRef(object):
-    def __init__(self, nodeid: str, sub_xpath: Optional[str], ltx_para: Optional[str]):
-        pass
+class DnmPoint(object):
+    def __init__(self, node: _Element, text_offset: Optional[int] = None, tail_offset: Optional[int] = None):
+        assert text_offset is None or tail_offset is None
+        self.node = node
+        self.text_offset = text_offset
+        self.tail_offset = tail_offset
+
+    def to_string(self) -> str:
+        xpath = self.node.getroottree().getpath(self.node)
+        if self.text_offset is not None:
+            return f'{xpath}+text{self.text_offset}'
+        if self.tail_offset is not None:
+            return f'{xpath}+tail{self.tail_offset}'
+        return xpath
+
+    @classmethod
+    def from_string(cls, string: str, root: _ElementTree) -> 'DnmPoint':
+        if '+' in string:
+            xpath, offset = string.split('+')
+            node = root.xpath(xpath)[0]
+            if offset.startswith('text'):
+                return DnmPoint(node, text_offset=int(offset[4:]))
+            else:
+                assert offset.startswith('tail')
+                return DnmPoint(node, tail_offset=int(offset[4:]))
+        return DnmPoint(root.xpath(string)[0])
+
+
+class DnmRange(object):
+    def __init__(self, from_: DnmPoint, to: DnmPoint, right_closed: bool = False):
+        self.from_ = from_
+        self.to = to
+        self.right_closed = right_closed  # `to` is included in range
+
+    def to_string(self) -> str:
+        return f'{self.from_.to_string()}&{self.to.to_string()}&{self.right_closed}'
+
+    @classmethod
+    def from_string(cls, string: str, root: _ElementTree) -> 'DnmRange':
+        x, y, b = string.split('&')
+        return DnmRange(DnmPoint.from_string(x, root), DnmPoint.from_string(y, root), {'True': True, 'False': False}[b])
 
 
 class DnmConfig(object):
@@ -36,6 +74,8 @@ class DnmConfig(object):
 
 
 class Token(object):
+    start_pos_in_dnm: Optional[int] = None
+
     def get_string(self) -> str:
         raise NotImplemented
 
@@ -115,10 +155,44 @@ class Dnm(object):
         self.backrefs_token: List[Token] = []
         self.backrefs_pos: List[int] = []
         self.string = ''.join(token.get_string() for token in self.tokens)
-        self.backrefs_token = [token for token in self.tokens for _ in range(len(token.get_string()))]
-        self.backrefs_pos = [pos for token in self.tokens for pos in range(len(token.get_string()))]
+        self.backrefs_token = []
+        self.backrefs_pos = []
+        for token in self.tokens:
+            token.start_pos_in_dnm = len(self.backrefs_token)
+            for pos in range(len(token.get_string())):
+                self.backrefs_token.append(token)
+                self.backrefs_pos.append(pos)
 
         self.nodes_to_add: List[Tuple[_Element, int, bool]] = []
+
+    def dnm_point_to_pos(self, point: DnmPoint) -> Tuple[int, Optional[int]]:
+        if point.tail_offset is not None:
+            if point.node in self.node_to_tail_token:
+                return self.node_to_tail_token[point.node].start_pos_in_dnm + point.tail_offset, None
+        if point.text_offset is not None:
+            if point.node in self.node_to_text_token:
+                return self.node_to_text_token[point.node].start_pos_in_dnm + point.text_offset, None
+        if point.node in self.node_to_token_range:
+            start, end = self.node_to_token_range[point.node]
+            start_offset = self.tokens[start].start_pos_in_dnm
+            end_token = self.tokens[end]
+            if isinstance(end_token, StringToken) and end_token.backref_type == 'tail':
+                return start_offset, end_token.start_pos_in_dnm
+            if end + 1 < len(self.tokens):
+                return start_offset, self.tokens[end + 1].start_pos_in_dnm
+            return start_offset, len(self.string)
+        return self.dnm_point_to_pos(DnmPoint(point.node.getparent()))  # ignore tail/text
+
+    def get_dnm_point(self, pos: int) -> DnmPoint:
+        token = self.backrefs_token[pos]
+        rel_pos = self.backrefs_pos[pos]
+        if isinstance(token, StringToken):
+            if token.backref_type == 'text':
+                return DnmPoint(token.backref_node, text_offset=rel_pos)
+            assert token.backref_type == 'tail'
+            return DnmPoint(token.backref_node, tail_offset=rel_pos)
+        assert isinstance(token, NodeToken)
+        return DnmPoint(token.backref_node)
 
     def _append_to_tokens(self, node: _Element):
         if not self.dnm_config.skip_node(node):
@@ -219,3 +293,5 @@ DEFAULT_DNM_CONFIG = DnmConfig(nodes_to_skip={'head', 'figure'},
                                classes_to_replace={'ltx_equationgroup': 'MathGroup', 'ltx_cite': 'LtxCite',
                                                    'ltx_ref': 'LtxRef', 'ltx_ref_tag': 'LtxRef',
                                                    'ltx_equation': 'MathEquation'})
+
+EMPTY_DNM_CONFIG = DnmConfig(nodes_to_skip=set(), classes_to_skip=set(), nodes_to_replace={}, classes_to_replace={})
