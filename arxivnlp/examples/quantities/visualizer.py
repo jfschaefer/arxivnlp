@@ -47,7 +47,10 @@ def main():
         count += 1
         dnm_range = DnmRange.from_string(occurrence.dnm_range, dnm.tree)
         star = '*'
-        message = quantity_kb.all_units[occurrence.unit_id].display_name
+        message = ''
+        if occurrence.amount_val is not None:
+            message += str(occurrence.amount_val) + ' '
+        message += quantity_kb.all_units[occurrence.unit_id].display_name
         dnm.add_node(etree.XML(f'<span><span class="arxivnlpmessagemarker">{star}</span><span class="arxivnlpmessage">{message}</span></span>'),
                      dnm.dnm_point_to_pos(dnm_range.to)[0], after=True)
     dnm.insert_added_nodes()

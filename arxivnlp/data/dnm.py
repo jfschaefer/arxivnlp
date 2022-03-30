@@ -258,6 +258,12 @@ class DnmStr(object):
     def get_node(self, pos: int) -> _Element:
         return self.dnm.backrefs_token[self.backrefs[pos]].get_surrounding_node()
 
+    def get_dnm_point(self, pos: int) -> DnmPoint:
+        return self.dnm.get_dnm_point(self.backrefs[pos])
+
+    def get_dnm_range(self, start: int, end: int, right_closed: bool = False) -> DnmRange:
+        return DnmRange(self.get_dnm_point(start), self.get_dnm_point(end), right_closed)
+
     def strip(self) -> 'DnmStr':
         str_start = 0
         str_end = 0

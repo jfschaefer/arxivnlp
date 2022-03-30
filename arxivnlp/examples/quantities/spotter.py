@@ -126,14 +126,15 @@ def search(arxivid: str, data_manager: DataManager) -> Iterator[PossibleFind]:
             matches = list(matcher.match(node))
             if not matches:
                 if node.xpath('.//*[@class="ltx_unit"]'):
-                    print('no match despit ltx_unit')
+                    pass
+                    # print('no match despit ltx_unit')
                 continue
-            print('matches')
+            # print('matches')
             assert len(matches) == 1
             tree = matches[0].to_label_tree()
             scalar = tree_to_number(tree['scalar'])
             unit_notation = unit_to_unit_notation(tree['unit'])
-            print(tree['unit'].node, tree['unit'].children, tree['unit'].children[0].node)
+            # print(tree['unit'].node, tree['unit'].children, tree['unit'].children[0].node)
             dnm_range = DnmRange(DnmPoint(tree['unit'].children[0].node), DnmPoint(tree['unit'].children[0].node), right_closed=True)
             yield PossibleFind(dnm_range=dnm_range, unit_notation=unit_notation)
 

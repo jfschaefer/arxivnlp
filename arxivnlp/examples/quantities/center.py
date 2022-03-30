@@ -14,11 +14,12 @@ from arxivnlp.examples.quantities.quantity_kb import Certainty, UnitNotation, Qu
 
 
 class ScalarNotation(enum.IntFlag):
-    SCIENTIFIC = enum.auto()  # scientific notation (x * 10^n)
-    PLUS_MINUS = enum.auto()  # x ± ε
-    DASH_RANGE = enum.auto()  # x - y
-    TEXT_RANGE = enum.auto()  # x to y, between x and y
-    IN_TEXT = enum.auto()  # at least one of the numbers is not in math mode
+    SCIENTIFIC = enum.auto()        # scientific notation (x * 10^n)
+    PLUS_MINUS = enum.auto()        # x ± ε
+    DASH_RANGE = enum.auto()        # x - y
+    TEXT_RANGE = enum.auto()        # x to y, between x and y
+    IN_TEXT = enum.auto()           # at least one of the numbers is not in math mode
+    IS_INT = enum.auto()            # 2.0 vs 2 may make a difference
 
 
 @dataclass
@@ -110,7 +111,12 @@ class QuantityCenter(object):
                         unit_notation=possible_find.unit_notation.to_json(),
                         unit_notation_properties=UnitNotationProperties(0)
                     )
+                    if possible_find.scalar is not None:
+                        occurrence.amount_val = possible_find.scalar.value
+                        occurrence.amount_notation = possible_find.scalar.scalar_notation
                     fp.write(occurrence.to_json() + '\n')
+                # else:
+                #     print('Rejected:', possible_find.unit_notation)
 
     def load_occurrences(self, arxivid: str) -> Iterator[Occurrence]:
         with gzip.open(self.directory / f'{arxivid}.gz', 'r') as fp:
