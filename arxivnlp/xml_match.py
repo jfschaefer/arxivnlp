@@ -3,7 +3,7 @@ from typing import Iterator, List, Optional, Union, Tuple, Set
 from lxml.etree import _Element
 import re
 
-from arxivnlp.util import get_node_classes
+from arxivnlp.utils import get_node_classes
 
 
 class LabelTree(object):
@@ -22,7 +22,7 @@ class LabelTree(object):
             raise KeyError(f'No child with label {item}')
         raise Exception(f'Cannot get item {item}')
 
-    def has_child(self, label: str) -> bool:
+    def __contains__(self, label: str) -> bool:
         return any(child.label == label for child in self.children)
 
     def __repr__(self):

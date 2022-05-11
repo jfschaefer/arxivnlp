@@ -115,8 +115,8 @@ class QuantityCenter(object):
                         occurrence.amount_val = possible_find.scalar.value
                         occurrence.amount_notation = possible_find.scalar.scalar_notation
                     fp.write(occurrence.to_json() + '\n')
-                # else:
-                #     print('Rejected:', possible_find.unit_notation)
+                else:
+                    print('Rejected:', possible_find.unit_notation, possible_find.scalar)
 
     def load_occurrences(self, arxivid: str) -> Iterator[Occurrence]:
         with gzip.open(self.directory / f'{arxivid}.gz', 'r') as fp:

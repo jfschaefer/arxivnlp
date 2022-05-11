@@ -91,7 +91,7 @@ def mn_to_number(mn_text: str) -> Union[float, int]:
 
 def tree_to_number(lt: LabelTree) -> Union[int, float]:
     if lt.label == 'simplenumber':
-        sign = -1 if lt.has_child('negative') else 1
+        sign = -1 if lt.__contains__('negative') else 1
         return sign * mn_to_number(lt['numeral'].node.text)
     elif lt.label == 'scientific':
         return tree_to_number(lt['factor']) * tree_to_number(lt['powerof10'])

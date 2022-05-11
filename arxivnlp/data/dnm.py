@@ -2,7 +2,7 @@ from typing import Set, List, Tuple, Dict, Optional
 
 from lxml.etree import _Element, _ElementTree
 
-from arxivnlp.util import get_node_classes
+from arxivnlp.utils import get_node_classes
 
 
 class DnmPoint(object):

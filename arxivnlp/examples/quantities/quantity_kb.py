@@ -18,9 +18,9 @@ class Notation(object):
     children: List['Notation']
 
     def __post_init__(self):
-        n_children = {'i': 0, 'sup': 2, 'sub': 2, 'supsub': 3}
+        n_children = {'i': 0, 'sup': 2, 'sub': 2, 'subsup': 3, 'seq': -1}
         assert self.nodetype in n_children
-        assert len(self.children) == n_children[self.nodetype]
+        assert len(self.children) == n_children[self.nodetype] or n_children[self.nodetype] == -1
 
         children = ', '.join(child.to_json() for child in self.children)
         attr = ', '.join(f'{json.dumps(key)}: {json.dumps(self.attr[key])}' for key in sorted(self.attr))
@@ -54,7 +54,7 @@ class UnitNotation(object):
     parts: List[Tuple[Notation, int]]
 
     def __post_init__(self):
-        self.parts.sort()
+        # self.parts.sort()
         self._jsonstr = f'[{", ".join(f"[{notation.to_json()}, {exp}]" for notation, exp in self.parts)}]'
 
     def to_json(self) -> str:

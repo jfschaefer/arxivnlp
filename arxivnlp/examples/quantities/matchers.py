@@ -1,6 +1,8 @@
 import unicodedata
 from typing import Union, Tuple
 
+from lxml.etree import _Element
+
 from arxivnlp import xml_match as xm
 from arxivnlp.examples.quantities.center import Scalars, ScalarNotation
 from arxivnlp.examples.quantities.quantity_kb import Notation, UnitNotation
@@ -61,7 +63,7 @@ scientific_number = (mrow / xm.seq(simple_number ** 'factor', mtext.with_text('[
 
 def tree_to_number(lt: LabelTree) -> Tuple[Union[int, float], str]:
     if lt.label == 'simplenumber':
-        sign = -1 if lt.has_child('negative') else 1
+        sign = -1 if 'negative' in lt else 1
         return sign * mn_to_number(lt['numeral'].node.text), 'simple'
     elif lt.label == 'scientific':
         return tree_to_number(lt['factor'])[0] * tree_to_number(lt['powerof10'])[0], 'scientific'
@@ -86,22 +88,49 @@ def scalar_to_scalars(lt: LabelTree) -> Scalars:
         scalar_notation |= ScalarNotation.SCIENTIFIC
     return Scalars(float(number), scalar_notation=scalar_notation)
 
+
+# ***********
+# * SYMBOLS *
+# ***********
+
+simple_symbol = xm.tag('mi') | xm.tag('mo')
+complex_symbol = (
+                     (xm.tag('msub') / xm.seq(simple_symbol, xm.any_tag)) |
+                     (xm.tag('msup') / xm.seq(simple_symbol, xm.any_tag)) |
+                     (xm.tag('msubsup') / xm.seq(simple_symbol, xm.any_tag, xm.any_tag))
+)
+symbol = simple_symbol | complex_symbol
+
+
+def symbol_to_notation(node: _Element) -> Notation:
+    # TODO: Invisible characters?
+    if node.tag in {'mi', 'mn', 'mo'}:
+        attr = {'val': node.text}
+        if node.tag == 'mi' and node.text and len(node.text) == 1 and node.get('mathvariant') != 'normal':
+            attr['isitalic'] = True
+        return Notation('i', attr, [])
+    elif node.tag in {'msup', 'msub', 'msubsup'}:
+        return Notation(node.tag[1:], {}, [symbol_to_notation(child) for child in node.getchildren()])
+    elif node.tag == 'mrow':
+        # TODO: We need some kind of normalization (merge consecutive identifiers etc.)
+        return Notation('seq', {}, [symbol_to_notation(child) for child in node.getchildren()])
+    raise Exception('Unsupported symbol node: ' + node.tag)
+
+
+
 # *********
 # * UNITS *
 # *********
 
-simple_unit = (xm.tag('mi') |
-               xm.tag('mo')  # e.g. for "%"
-               ) ** 'simpleunit'  # TODO: expand this
+simple_unit = (simple_symbol | (xm.tag('msub') / xm.seq(simple_symbol, xm.any_tag))) ** 'simpleunit'
+# simple_unit = simple_symbol ** 'simpleunit'
+
 
 def simple_unit_to_notation(lt: LabelTree) -> Notation:
     assert lt.label == 'simpleunit'
     # TODO: This will get much more complex
     node = lt.node
-    attr = {'val': node.text}
-    if node.tag == 'mi' and node.text and len(node.text) == 1 and node.get('mathvariant') != 'normal':
-        attr['isitalic'] = True
-    return Notation('i', attr, [])
+    return symbol_to_notation(node)
 
 
 unit_power = (xm.tag('msup') / xm.seq(simple_unit, simple_number ** 'exponent')) ** 'unitpower'
