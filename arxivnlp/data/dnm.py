@@ -253,7 +253,7 @@ class DnmStr(object):
         return DnmStr(string=self.string[item], backrefs=backrefs, dnm=self.dnm)
 
     def __repr__(self):
-        return f'SubString({repr(self.string)})'
+        return f'DnmStr({repr(self.string)})'
 
     def get_node(self, pos: int) -> _Element:
         return self.dnm.backrefs_token[self.backrefs[pos]].get_surrounding_node()
