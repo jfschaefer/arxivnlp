@@ -1,4 +1,6 @@
+import copy
 import unittest
+from pathlib import Path
 
 from arxivnlp.config import Config
 from arxivnlp.data.arxivcategories import ArxivCategories
@@ -22,16 +24,19 @@ class TestData(unittest.TestCase):
         self.assertNotIn('0704.0021', docs)
         self.assertIn('0704.0009', docs)
 
-    @utils.smart_skip(requires_data=True)
     def test_open_doc(self):
-        docs = ArXMLivDocs(Config.get())
+        config = copy.copy(Config.get())
+        config.arxmliv_dir = Path(__file__).parent / 'resources' / 'arxmliv_test_dir'
+        docs = ArXMLivDocs(config)
 
         def just_open(arxivid):
             with docs.open(arxivid) as _:
                 pass
 
-        just_open('1402.4845')
-        just_open('cond-mat9407123')
-        self.assertRaises(MissingDataException, lambda: just_open('1402.12345'))
-        self.assertRaises(MissingDataException, lambda: just_open('9001.12345'))
+        just_open('1701.39125')
+        just_open('1603.13523')         # in zip file
+        just_open('cond-mat9401234')
+        self.assertRaises(MissingDataException, lambda: just_open('1701.12345'))
+        self.assertRaises(MissingDataException, lambda: just_open('1603.12345'))  # in zip file
+        self.assertRaises(MissingDataException, lambda: just_open('9001.12345'))  # no such folder exists
         self.assertRaises(BadArxivId, lambda: just_open('bad'))

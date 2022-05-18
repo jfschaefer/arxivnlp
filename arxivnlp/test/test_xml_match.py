@@ -42,7 +42,6 @@ class TestDnm(unittest.TestCase):
 </math>
     ''')
 
-    @skip
     def test_simple(self):
         base_matcher = xm.tag('math') / xm.tag('semantics')
 

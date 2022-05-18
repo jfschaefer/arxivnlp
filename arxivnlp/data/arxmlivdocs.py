@@ -54,6 +54,7 @@ class ArXMLivDocs(object):
                 try:
                     found = True
                     yield file
+                    return
                 finally:
                     file.close()
 
@@ -77,6 +78,7 @@ class ArXMLivDocs(object):
                     else:
                         result = actual_file
                     yield result
+                    return
                 finally:
                     actual_file.close()
 
